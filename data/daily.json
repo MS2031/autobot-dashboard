@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-28",
+  "last_updated": "2026-04-26",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -14,11 +14,24 @@
     },
     "IRP": {
       "initial": 37246917,
-      "hybrid_weight": 0.70,
-      "safe_weight": 0.30
+      "hybrid_weight": 0.7,
+      "safe_weight": 0.3
     }
   },
   "daily_records": [
+    {
+      "date": "2026-04-26",
+      "mode": "공격",
+      "ISA_hybrid": 45229192,
+      "ISA_smartsplit": 37005702,
+      "Pension_hybrid": 36797107,
+      "Pension_smartsplit": 12265702,
+      "IRP_hybrid_actual": 26072842,
+      "IRP_hybrid_signal": 26072842,
+      "IRP_safe_actual": 11174075,
+      "IRP_safe_signal": 11174075,
+      "trades": []
+    },
     {
       "date": "2026-04-28",
       "mode": "공격",

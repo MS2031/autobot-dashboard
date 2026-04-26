@@ -65,6 +65,27 @@
     .chart-card { background: #16213e; border-radius: 10px; padding: 20px; }
     .chart-wrap { position: relative; height: 360px; }
 
+    .account-charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 16px;
+    }
+    .chart-card-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 12px; gap: 12px; flex-wrap: wrap;
+    }
+    .chart-card-header .title {
+      font-size: 17px; font-weight: 700; color: #b8b8d0;
+    }
+    .chart-card-header .stats {
+      font-size: 14px; text-align: right;
+    }
+    .chart-card-header .stats .stat-row { margin: 2px 0; }
+    .chart-card-header .stats .k { color: #8a8aa3; margin-right: 6px; }
+    .chart-card-header .stats .v { font-weight: 700; margin-right: 8px; }
+    .chart-card-header .stats .v:last-child { margin-right: 0; }
+    .chart-wrap-sm { position: relative; height: 280px; }
+
     .table-wrap {
       background: #16213e; border-radius: 10px; padding: 8px;
       max-height: 480px; overflow: auto;
@@ -89,6 +110,10 @@
       .summary-grid .card .value { font-size: 24px; }
       table th, table td { font-size: 13px; padding: 8px 6px; }
       .chart-wrap { height: 260px; }
+      .account-charts-grid { grid-template-columns: 1fr; }
+      .chart-wrap-sm { height: 240px; }
+      .chart-card-header { flex-direction: column; align-items: flex-start; }
+      .chart-card-header .stats { text-align: left; width: 100%; }
     }
   </style>
 </head>
@@ -115,7 +140,36 @@
 
   <section>
     <h2>계좌별 누적 수익률</h2>
-    <div class="chart-card"><div class="chart-wrap"><canvas id="accountChart"></canvas></div></div>
+    <div class="account-charts-grid">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="title">ISA 누적 수익률</div>
+          <div class="stats" id="isaStats"></div>
+        </div>
+        <div class="chart-wrap-sm"><canvas id="isaChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="title">연금 누적 수익률</div>
+          <div class="stats" id="pensionStats"></div>
+        </div>
+        <div class="chart-wrap-sm"><canvas id="pensionChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="title">IRP 누적 수익률</div>
+          <div class="stats" id="irpStats"></div>
+        </div>
+        <div class="chart-wrap-sm"><canvas id="irpChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="title">전체 누적 수익률</div>
+          <div class="stats" id="totalStats"></div>
+        </div>
+        <div class="chart-wrap-sm"><canvas id="totalChart"></canvas></div>
+      </div>
+    </div>
   </section>
 
   <section>
@@ -149,7 +203,6 @@ const totalActual = r =>
 const irpActual = r => r.IRP_hybrid_actual + r.IRP_safe_actual;
 const irpSignal = r => r.IRP_hybrid_signal + r.IRP_safe_signal;
 
-// 6 columns used in tables: [ISA Hybrid, ISA Smart, 연금 Hybrid, 연금 Smart, IRP 실제, IRP 시그널]
 const colsOf = r => [
   r.ISA_hybrid,
   r.ISA_smartsplit,
@@ -208,7 +261,7 @@ async function load() {
     document.getElementById('dailyTableWrap').innerHTML = '<div class="empty">데이터 수집 중...</div>';
     document.getElementById('cumTableWrap').innerHTML   = '<div class="empty">데이터 수집 중...</div>';
     renderStrategyChart([], [], []);
-    renderAccountChart([], [], [], [], []);
+    renderAccountCharts([], accs, initialTotal);
     return;
   }
 
@@ -249,7 +302,7 @@ async function load() {
     isaInit * (accs.ISA?.smartsplit_weight || 0) +
     pensionInit * (accs.Pension?.smartsplit_weight || 0);
 
-  // 종목 배치가 3계좌 동일하므로 Hybrid 시그널 선은 표시하지 않음 (실제 + SmartSplit 2개만)
+  // 전략 비교 차트: Hybrid 실제 + SmartSplit 2개만
   const hybridActualPct = records.map(r => {
     const v = r.ISA_hybrid + r.Pension_hybrid + r.IRP_hybrid_actual;
     return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
@@ -260,15 +313,7 @@ async function load() {
   });
   renderStrategyChart(labels, hybridActualPct, smartPct);
 
-  const isaPct = records.map(r =>
-    isaInit ? (((r.ISA_hybrid + r.ISA_smartsplit) - isaInit) / isaInit) * 100 : 0);
-  const pensionPct = records.map(r =>
-    pensionInit ? (((r.Pension_hybrid + r.Pension_smartsplit) - pensionInit) / pensionInit) * 100 : 0);
-  const irpActualPct = records.map(r =>
-    irpInit ? ((irpActual(r) - irpInit) / irpInit) * 100 : 0);
-  const irpSignalPct = records.map(r =>
-    irpInit ? ((irpSignal(r) - irpInit) / irpInit) * 100 : 0);
-  renderAccountChart(labels, isaPct, pensionPct, irpActualPct, irpSignalPct);
+  renderAccountCharts(records, accs, initialTotal);
 }
 
 function setSummary(id, text, raw) {
@@ -371,7 +416,7 @@ function renderProfitTable(wrapId, records, accs, mode) {
     }
   });
 
-  rows.sort((a, b) => b.date.localeCompare(a.date)); // 내림차순
+  rows.sort((a, b) => b.date.localeCompare(a.date));
 
   let html = `<table>
     <thead><tr>
@@ -401,7 +446,7 @@ const chartOpts = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { labels: { color: '#e8e8f0', font: { size: 14 } } },
+    legend: { display: true, labels: { color: '#e8e8f0', font: { size: 14 } } },
     tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + '%' } }
   },
   scales: {
@@ -410,7 +455,18 @@ const chartOpts = {
   }
 };
 
-let strategyChart = null, accountChart = null;
+function makeOpts(showLegend) {
+  return {
+    ...chartOpts,
+    plugins: {
+      ...chartOpts.plugins,
+      legend: { display: showLegend, labels: { color: '#e8e8f0', font: { size: 14 } } }
+    }
+  };
+}
+
+let strategyChart = null;
+const accountChartInstances = {};
 
 function renderStrategyChart(labels, hybridActual, smart) {
   const ctx = document.getElementById('strategyChart').getContext('2d');
@@ -432,22 +488,125 @@ function renderStrategyChart(labels, hybridActual, smart) {
   });
 }
 
-function renderAccountChart(labels, isa, pension, irpAct, irpSig) {
-  const ctx = document.getElementById('accountChart').getContext('2d');
-  if (accountChart) accountChart.destroy();
-  accountChart = new Chart(ctx, {
+function drawAccountChart(canvasId, labels, datasets, showLegend) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if (accountChartInstances[canvasId]) accountChartInstances[canvasId].destroy();
+  accountChartInstances[canvasId] = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'ISA',         data: isa,     borderColor: '#fbbf24', tension: 0.3, borderWidth: 2 },
-        { label: '연금',        data: pension, borderColor: '#a78bfa', tension: 0.3, borderWidth: 2 },
-        { label: 'IRP 실제',    data: irpAct,  borderColor: '#fb923c', tension: 0.3, borderWidth: 2.5 },
-        { label: 'IRP 시그널',  data: irpSig,  borderColor: '#fb923c', borderDash: [6, 4], tension: 0.3, borderWidth: 1.5, pointRadius: 2 }
-      ]
-    },
-    options: chartOpts
+    data: { labels, datasets },
+    options: makeOpts(showLegend)
   });
+}
+
+function buildStats(rows) {
+  return rows.map(r => {
+    if (r.kind === 'amount') {
+      return `<div class="stat-row"><span class="k">${r.label}</span>` +
+             `<span class="v ${colorClass(r.value)}">${fmtSignedWon(r.value)}</span></div>`;
+    }
+    if (r.kind === 'pct') {
+      return `<div class="stat-row"><span class="k">${r.label}</span>` +
+             `<span class="v ${colorClass(r.value)}">${fmtPct(r.value)}</span></div>`;
+    }
+    if (r.kind === 'pair') {
+      return `<div class="stat-row"><span class="k">${r.label}</span>` +
+             `<span class="v ${colorClass(r.amount)}">${fmtSignedWon(r.amount)}</span>` +
+             `<span class="v ${colorClass(r.pct)}">${fmtPct(r.pct)}</span></div>`;
+    }
+    return '';
+  }).join('');
+}
+
+function renderAccountCharts(records, accs, initialTotal) {
+  const isaInit = accs.ISA?.initial || 0;
+  const pensionInit = accs.Pension?.initial || 0;
+  const irpInit = accs.IRP?.initial || 0;
+  const labels = records.map(r => r.date);
+
+  if (records.length === 0) {
+    ['isaStats', 'pensionStats', 'irpStats', 'totalStats'].forEach(id => {
+      document.getElementById(id).innerHTML = '<span class="zero">데이터 수집 중</span>';
+    });
+    drawAccountChart('isaChart',     labels, [{ label: 'ISA',  data: [], borderColor: '#fbbf24' }], false);
+    drawAccountChart('pensionChart', labels, [{ label: '연금', data: [], borderColor: '#a78bfa' }], false);
+    drawAccountChart('irpChart',     labels, [
+      { label: 'IRP 실제',   data: [], borderColor: '#fb923c' },
+      { label: 'IRP 시그널', data: [], borderColor: '#fb923c', borderDash: [6,4] }
+    ], true);
+    drawAccountChart('totalChart',   labels, [{ label: '전체', data: [], borderColor: '#e8e8f0' }], false);
+    return;
+  }
+
+  const last = records[records.length - 1];
+
+  // ISA
+  const isaSeries = records.map(r =>
+    isaInit ? (((r.ISA_hybrid + r.ISA_smartsplit) - isaInit) / isaInit) * 100 : 0);
+  const isaProfit = (last.ISA_hybrid + last.ISA_smartsplit) - isaInit;
+  const isaPct = isaInit ? (isaProfit / isaInit) * 100 : 0;
+  document.getElementById('isaStats').innerHTML = buildStats([
+    { kind: 'amount', label: '누적 수익금', value: isaProfit },
+    { kind: 'pct',    label: '누적 수익률', value: isaPct }
+  ]);
+  drawAccountChart('isaChart', labels, [
+    { label: 'ISA', data: isaSeries,
+      borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.10)',
+      tension: 0.3, fill: false, borderWidth: 2.5 }
+  ], false);
+
+  // 연금
+  const pensionSeries = records.map(r =>
+    pensionInit ? (((r.Pension_hybrid + r.Pension_smartsplit) - pensionInit) / pensionInit) * 100 : 0);
+  const pensionProfit = (last.Pension_hybrid + last.Pension_smartsplit) - pensionInit;
+  const pensionPct = pensionInit ? (pensionProfit / pensionInit) * 100 : 0;
+  document.getElementById('pensionStats').innerHTML = buildStats([
+    { kind: 'amount', label: '누적 수익금', value: pensionProfit },
+    { kind: 'pct',    label: '누적 수익률', value: pensionPct }
+  ]);
+  drawAccountChart('pensionChart', labels, [
+    { label: '연금', data: pensionSeries,
+      borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.10)',
+      tension: 0.3, fill: false, borderWidth: 2.5 }
+  ], false);
+
+  // IRP (실제 + 시그널)
+  const irpActSeries = records.map(r =>
+    irpInit ? ((irpActual(r) - irpInit) / irpInit) * 100 : 0);
+  const irpSigSeries = records.map(r =>
+    irpInit ? ((irpSignal(r) - irpInit) / irpInit) * 100 : 0);
+  const irpActProfit = irpActual(last) - irpInit;
+  const irpActPct = irpInit ? (irpActProfit / irpInit) * 100 : 0;
+  const irpSigProfit = irpSignal(last) - irpInit;
+  const irpSigPct = irpInit ? (irpSigProfit / irpInit) * 100 : 0;
+  const excessPct = irpActPct - irpSigPct;
+  document.getElementById('irpStats').innerHTML = buildStats([
+    { kind: 'pair', label: '실제',     amount: irpActProfit, pct: irpActPct },
+    { kind: 'pair', label: '시그널',   amount: irpSigProfit, pct: irpSigPct },
+    { kind: 'pct',  label: '초과수익', value: excessPct }
+  ]);
+  drawAccountChart('irpChart', labels, [
+    { label: 'IRP 실제',   data: irpActSeries,
+      borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.10)',
+      tension: 0.3, fill: false, borderWidth: 2.5 },
+    { label: 'IRP 시그널', data: irpSigSeries,
+      borderColor: '#fb923c', borderDash: [6, 4],
+      tension: 0.3, fill: false, borderWidth: 1.5, pointRadius: 2 }
+  ], true);
+
+  // 전체
+  const totalSeries = records.map(r =>
+    initialTotal ? ((totalActual(r) - initialTotal) / initialTotal) * 100 : 0);
+  const totalProfit = totalActual(last) - initialTotal;
+  const totalPct = initialTotal ? (totalProfit / initialTotal) * 100 : 0;
+  document.getElementById('totalStats').innerHTML = buildStats([
+    { kind: 'amount', label: '총 누적 수익금', value: totalProfit },
+    { kind: 'pct',    label: '총 누적 수익률', value: totalPct }
+  ]);
+  drawAccountChart('totalChart', labels, [
+    { label: '전체', data: totalSeries,
+      borderColor: '#e8e8f0', backgroundColor: 'rgba(232,232,240,0.10)',
+      tension: 0.3, fill: false, borderWidth: 3 }
+  ], false);
 }
 
 load();

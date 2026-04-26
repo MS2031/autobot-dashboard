@@ -257,7 +257,12 @@ def git_push(today):
 def discord_notify(msg):
     try:
         requests.post(
-            DISCORD_WEBHOOK, json={"content": "@everyone\n" + msg}, timeout=10,
+            DISCORD_WEBHOOK,
+            json={
+                "content": "@everyone\n" + msg,
+                "allowed_mentions": {"parse": ["everyone"]},
+            },
+            timeout=10,
         )
     except Exception as e:
         print(f"discord notify failed: {e}")

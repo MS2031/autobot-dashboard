@@ -1,0 +1,360 @@
+"""
+AutobotEx Dashboard Updater
+- 매일 장 마감 후(15:40 예정) 실행
+- ISA / Pension / IRP 3계좌 잔고 + 오늘 매매내역을 한투 KIS API로 조회
+- daily.json에 새 행 추가 (가중치 기반 전략별 잔고 분리)
+- git push로 GitHub Pages 자동 갱신
+- Discord 웹훅으로 완료/실패 알림
+"""
+
+import sys
+import io
+import os
+import re
+import json
+import subprocess
+import datetime
+import traceback
+
+import requests
+
+if hasattr(sys.stdout, "buffer"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+if hasattr(sys.stderr, "buffer"):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+
+DASHBOARD_DIR = r"C:\AutobotEx\dashboard"
+DAILY_JSON    = os.path.join(DASHBOARD_DIR, "data", "daily.json")
+PYTHON_EXE    = sys.executable
+
+DISCORD_WEBHOOK = (
+    "https://discord.com/api/webhooks/1493967027000443010/"
+    "-sqgdVy8BQ-G0LxwX51mHCwV1nuqgJieIznyV8_5Zaq18nqKXQ9VEE-N77oCdQnbHT0D"
+)
+
+# 종목코드 → 전략 매핑. 잔고는 가중치로 분배하므로, 매매내역 표시용으로만 사용.
+# ISA의 133690은 Hybrid/SmartSplit 양쪽 존재 → Hybrid로 기본 할당.
+ACCOUNTS = {
+    "ISA": {
+        "dir": r"C:\AutobotEx\ISA",
+        "weights": {"hybrid": 0.55, "smartsplit": 0.45},
+        "stock_map": {
+            "122630": "smartsplit",
+            "091160": "smartsplit",
+            "161510": "smartsplit",
+        },
+        "default_strategy": "hybrid",
+    },
+    "Pension": {
+        "dir": r"C:\AutobotEx\Pension",
+        "weights": {"hybrid": 0.75, "smartsplit": 0.25},
+        "stock_map": {
+            "091160": "smartsplit",
+            "463250": "smartsplit",
+        },
+        "default_strategy": "hybrid",
+    },
+    "IRP": {
+        "dir": r"C:\AutobotEx\IRP",
+        "weights": {"hybrid": 0.70, "safe": 0.30},
+        "stock_map": {},
+        "default_strategy": "hybrid",
+    },
+}
+
+STRATEGY_LABEL = {"hybrid": "Hybrid", "smartsplit": "SmartSplit", "safe": "안전자산"}
+
+
+# ───────────────────────────── 봇 폴더에서 실행할 inline 스크립트
+# 출력은 ###JSON_BEGIN###...###JSON_END###로 감싸서, 봇 모듈의 부수 print를 무시하게 함.
+
+BALANCE_SCRIPT = r"""
+import sys, io, json
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+import KIS_Common as Common
+import KIS_API_Helper_KR as KR
+Common.SetChangeMode("REAL")
+b = KR.GetBalance() or {}
+stocks = KR.GetMyStockList() or []
+def f(x):
+    try: return float(x)
+    except: return 0.0
+def i(x):
+    try: return int(float(x))
+    except: return 0
+out = {
+    "total": f(b.get("TotalMoney")),
+    "stock_money": f(b.get("StockMoney")),
+    "cash": f(b.get("RemainMoney")),
+    "stocks": [
+        {"code": s.get("StockCode"), "name": s.get("StockName"),
+         "value": f(s.get("StockNowMoney")), "qty": i(s.get("StockQty"))}
+        for s in stocks if isinstance(s, dict)
+    ],
+}
+print("###JSON_BEGIN###" + json.dumps(out, ensure_ascii=False) + "###JSON_END###")
+"""
+
+ORDERS_SCRIPT = r"""
+import sys, io, json
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+import KIS_Common as Common
+import KIS_API_Helper_KR as KR
+Common.SetChangeMode("REAL")
+orders = KR.GetOrderList(side="ALL", status="CLOSE", limit=0) or []
+today = Common.GetNowDateStr("KR")
+filtered = []
+if isinstance(orders, list):
+    for o in orders:
+        if not isinstance(o, dict):
+            continue
+        if o.get("OrderDate") != today:
+            continue
+        if str(o.get("OrderIsCancel", "")).upper() == "Y":
+            continue
+        try:
+            qty = int(float(o.get("OrderResultAmt", 0)))
+        except Exception:
+            qty = 0
+        if qty <= 0:
+            continue
+        filtered.append(o)
+print("###JSON_BEGIN###" + json.dumps(filtered, ensure_ascii=False) + "###JSON_END###")
+"""
+
+JSON_RE = re.compile(r"###JSON_BEGIN###(.*?)###JSON_END###", re.DOTALL)
+
+
+def run_subprocess(cwd, script, label):
+    """봇 폴더에서 inline 스크립트 실행, JSON 마커 추출."""
+    res = subprocess.run(
+        [PYTHON_EXE, "-X", "utf8", "-c", script],
+        cwd=cwd, capture_output=True, text=True,
+        encoding="utf-8", errors="replace", timeout=90,
+    )
+    if res.returncode != 0:
+        raise RuntimeError(
+            f"[{label}] subprocess rc={res.returncode}\n"
+            f"STDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}"
+        )
+    m = JSON_RE.search(res.stdout)
+    if not m:
+        raise RuntimeError(
+            f"[{label}] JSON marker not found in stdout:\n{res.stdout}\nSTDERR:\n{res.stderr}"
+        )
+    return json.loads(m.group(1))
+
+
+def split_balance(account_key, balance):
+    """총잔고(현금 포함)를 가중치로 전략별 분배."""
+    weights = ACCOUNTS[account_key]["weights"]
+    total = balance["total"]
+    return {strategy: total * w for strategy, w in weights.items()}
+
+
+def normalize_trades(account_key, raw_orders):
+    """KIS GetOrderList 원시 형식 → daily.json trades 표준 dict 리스트."""
+    meta = ACCOUNTS[account_key]
+    smap, default = meta["stock_map"], meta["default_strategy"]
+    out = []
+    for o in raw_orders:
+        code = str(o.get("OrderStock", "") or "")
+        side = "매수" if o.get("OrderSide") == "Buy" else "매도"
+        try:
+            qty = int(float(o.get("OrderResultAmt", 0)))
+        except Exception:
+            qty = 0
+        try:
+            price = int(round(float(o.get("OrderAvgPrice", 0))))
+        except Exception:
+            price = 0
+        strategy_key = smap.get(code, default)
+        out.append({
+            "account": account_key,
+            "strategy": STRATEGY_LABEL.get(strategy_key, strategy_key),
+            "action": side,
+            "stock_code": code,
+            "stock_name": o.get("OrderStockName", "") or "",
+            "qty": qty,
+            "price": price,
+            "amount": qty * price,
+        })
+    return out
+
+
+def compute_irp_signal(daily_data, irp_split):
+    """
+    IRP 시그널 이론값.
+    hybrid_irp_state.json이 없거나 last_allocation이 비면 actual=signal로 폴백.
+    봇이 실행되면 last_allocation 구조에 맞춰 추후 정밀 계산 추가 가능.
+    """
+    state_path = os.path.join(ACCOUNTS["IRP"]["dir"], "hybrid_irp_state.json")
+    fallback = {
+        "hybrid_signal": irp_split["hybrid"],
+        "safe_signal":   irp_split["safe"],
+    }
+    if not os.path.exists(state_path):
+        return fallback
+    try:
+        with open(state_path, "r", encoding="utf-8") as f:
+            state = json.load(f)
+        alloc = state.get("last_allocation") or {}
+        if not alloc:
+            return fallback
+        # 정밀 계산은 봇의 실제 last_allocation 구조 확인 후 보강.
+        # 현재는 안전하게 actual을 signal로 사용.
+        return fallback
+    except Exception as e:
+        print(f"  [IRP signal] 상태파일 읽기 실패, 폴백 사용: {e}")
+        return fallback
+
+
+def load_daily():
+    with open(DAILY_JSON, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_daily(daily):
+    with open(DAILY_JSON, "w", encoding="utf-8") as f:
+        json.dump(daily, f, ensure_ascii=False, indent=2)
+
+
+def upsert_record(daily, new_record):
+    """같은 날짜가 있으면 덮어쓰기."""
+    today = new_record["date"]
+    daily["daily_records"] = [r for r in daily["daily_records"] if r.get("date") != today]
+    daily["daily_records"].append(new_record)
+    daily["daily_records"].sort(key=lambda r: r.get("date", ""))
+    daily["last_updated"] = today
+
+
+def git_run(args):
+    return subprocess.run(
+        ["git"] + args, cwd=DASHBOARD_DIR,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        timeout=60,
+    )
+
+
+def git_push(today):
+    add = git_run(["add", "-A"])
+    if add.returncode != 0:
+        raise RuntimeError(f"git add failed: {add.stderr}")
+    status = git_run(["status", "--porcelain"])
+    if not status.stdout.strip():
+        print("  git: 변경사항 없음 (push 생략)")
+        return False
+    commit = git_run(["commit", "-m", f"daily update {today}"])
+    if commit.returncode != 0:
+        raise RuntimeError(f"git commit failed:\n{commit.stdout}\n{commit.stderr}")
+    push = git_run(["push", "origin", "main"])
+    if push.returncode != 0:
+        raise RuntimeError(f"git push failed:\n{push.stdout}\n{push.stderr}")
+    print("  git push: ok")
+    return True
+
+
+def discord_notify(msg):
+    try:
+        requests.post(
+            DISCORD_WEBHOOK, json={"content": "@everyone\n" + msg}, timeout=10,
+        )
+    except Exception as e:
+        print(f"discord notify failed: {e}")
+
+
+def fmt_won(v):
+    return f"₩{int(round(v)):,}"
+
+
+def fmt_signed_won(v):
+    v = int(round(v))
+    if v == 0:
+        return "₩0"
+    return ("+" if v > 0 else "-") + "₩" + f"{abs(v):,}"
+
+
+def main():
+    today = datetime.date.today().isoformat()
+    print(f"[{today}] AutobotEx Dashboard 업데이트 시작")
+
+    daily = load_daily()
+
+    results = {}
+    for key, meta in ACCOUNTS.items():
+        print(f"  [{key}] 잔고 조회 중...")
+        bal = run_subprocess(meta["dir"], BALANCE_SCRIPT, f"{key}.balance")
+        print(f"  [{key}] 매매내역 조회 중...")
+        orders = run_subprocess(meta["dir"], ORDERS_SCRIPT, f"{key}.orders")
+        results[key] = {
+            "balance": bal,
+            "orders":  orders,
+            "split":   split_balance(key, bal),
+        }
+        print(f"  [{key}] 총잔고 {fmt_won(bal['total'])} (현금 {fmt_won(bal['cash'])}) / 매매 {len(orders)}건")
+
+    irp_signal = compute_irp_signal(daily, results["IRP"]["split"])
+
+    all_trades = []
+    for key in ["ISA", "Pension", "IRP"]:
+        all_trades.extend(normalize_trades(key, results[key]["orders"]))
+
+    new_record = {
+        "date": today,
+        "mode": daily.get("mode", "공격"),
+        "ISA_hybrid":          int(round(results["ISA"]["split"]["hybrid"])),
+        "ISA_smartsplit":      int(round(results["ISA"]["split"]["smartsplit"])),
+        "Pension_hybrid":      int(round(results["Pension"]["split"]["hybrid"])),
+        "Pension_smartsplit":  int(round(results["Pension"]["split"]["smartsplit"])),
+        "IRP_hybrid_actual":   int(round(results["IRP"]["split"]["hybrid"])),
+        "IRP_hybrid_signal":   int(round(irp_signal["hybrid_signal"])),
+        "IRP_safe_actual":     int(round(results["IRP"]["split"]["safe"])),
+        "IRP_safe_signal":     int(round(irp_signal["safe_signal"])),
+        "trades": all_trades,
+    }
+
+    upsert_record(daily, new_record)
+    save_daily(daily)
+    print(f"  daily.json 저장 완료 (총 {len(daily['daily_records'])} 행, trades {len(all_trades)}건)")
+
+    pushed = git_push(today)
+
+    isa_total = new_record["ISA_hybrid"]     + new_record["ISA_smartsplit"]
+    pen_total = new_record["Pension_hybrid"] + new_record["Pension_smartsplit"]
+    irp_total = new_record["IRP_hybrid_actual"] + new_record["IRP_safe_actual"]
+    total_actual = isa_total + pen_total + irp_total
+    initial_total = (
+        daily["accounts"]["ISA"]["initial"] +
+        daily["accounts"]["Pension"]["initial"] +
+        daily["accounts"]["IRP"]["initial"]
+    )
+    cum_amount = total_actual - initial_total
+
+    msg = (
+        "📊 대시보드 업데이트 완료\n"
+        f"날짜: {today}\n"
+        f"총자산: {fmt_won(total_actual)} ({fmt_signed_won(cum_amount)})\n"
+        f"ISA: {fmt_won(isa_total)} / 연금: {fmt_won(pen_total)} / IRP: {fmt_won(irp_total)}\n"
+        f"오늘 매매: {len(all_trades)}건"
+        + ("" if pushed else "\n(git: 변경사항 없어 push 생략)")
+    )
+    discord_notify(msg)
+    print("✅ 완료")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(tb)
+        try:
+            err_brief = (str(e) or repr(e))[:800]
+            discord_notify(
+                "❌ 대시보드 업데이트 실패\n"
+                f"날짜: {datetime.date.today().isoformat()}\n"
+                f"```\n{err_brief}\n```"
+            )
+        except Exception:
+            pass
+        sys.exit(1)

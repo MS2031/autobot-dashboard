@@ -138,6 +138,11 @@
   </section>
 
   <section>
+    <h2>오늘 매매내역</h2>
+    <div class="table-wrap" id="tradesTableWrap"><div class="empty">로딩 중...</div></div>
+  </section>
+
+  <section>
     <h2>계좌별 누적 수익률</h2>
     <div class="account-charts-grid">
       <div class="chart-card">
@@ -259,6 +264,7 @@ async function load() {
     renderAccountCards(accs, null);
     document.getElementById('dailyTableWrap').innerHTML = '<div class="empty">데이터 수집 중...</div>';
     document.getElementById('cumTableWrap').innerHTML   = '<div class="empty">데이터 수집 중...</div>';
+    document.getElementById('tradesTableWrap').innerHTML = '<div class="empty">데이터 수집 중...</div>';
     renderStrategyChart([], [], []);
     renderAccountCharts([], accs, initialTotal);
     return;
@@ -285,6 +291,7 @@ async function load() {
   setSummary('cumAmount',   fmtSignedWon(cumAmount),  cumAmount);
 
   renderAccountCards(accs, last);
+  renderTrades(last.trades || []);
   renderProfitTable('dailyTableWrap', records, accs, 'daily');
   renderProfitTable('cumTableWrap',   records, accs, 'cumulative');
 
@@ -397,6 +404,36 @@ function renderAccountCards(accs, last) {
     el.innerHTML = body;
     wrap.appendChild(el);
   });
+}
+
+function renderTrades(trades) {
+  const wrap = document.getElementById('tradesTableWrap');
+  if (!trades || trades.length === 0) {
+    wrap.innerHTML = '<div class="empty">오늘 매매 없음</div>';
+    return;
+  }
+  let html = `<table>
+    <thead><tr>
+      <th>계좌</th><th>전략</th><th>매수/매도</th>
+      <th>종목코드</th><th>종목명</th>
+      <th>수량</th><th>단가</th><th>금액</th>
+    </tr></thead><tbody>`;
+  trades.forEach(t => {
+    const cls = t.action === '매수' ? 'pos' : 'neg';
+    const qty = (t.qty || 0).toLocaleString('ko-KR');
+    html += `<tr>
+      <td>${t.account || ''}</td>
+      <td>${t.strategy || ''}</td>
+      <td class="${cls}"><strong>${t.action || ''}</strong></td>
+      <td>${t.stock_code || ''}</td>
+      <td>${t.stock_name || ''}</td>
+      <td>${qty}</td>
+      <td>${fmtWon(t.price || 0)}</td>
+      <td>${fmtWon(t.amount || 0)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
 }
 
 function renderProfitTable(wrapId, records, accs, mode) {

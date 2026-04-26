@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AutobotEx 자동매매 대시보드</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -85,6 +86,15 @@
     .chart-card-header .stats .v:last-child { margin-right: 0; }
     .chart-wrap-sm { position: relative; height: 280px; }
 
+    .summary-period-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 16px;
+    }
+    .period-range {
+      font-size: 13px; color: #8a8aa3; margin-bottom: 12px;
+    }
+
     .table-wrap {
       background: #16213e; border-radius: 10px; padding: 8px;
       max-height: 480px; overflow: auto;
@@ -110,6 +120,7 @@
       table th, table td { font-size: 13px; padding: 8px 6px; }
       .chart-wrap { height: 260px; }
       .account-charts-grid { grid-template-columns: 1fr; }
+      .summary-period-grid { grid-template-columns: 1fr; }
       .chart-wrap-sm { height: 240px; }
       .chart-card-header { flex-direction: column; align-items: flex-start; }
       .chart-card-header .stats { text-align: left; width: 100%; }
@@ -177,6 +188,34 @@
   </section>
 
   <section>
+    <h2>주간/월간 수익률 요약</h2>
+    <div class="summary-period-grid">
+      <div class="card">
+        <div class="label">주간 수익률 (최근 7거래일)</div>
+        <div class="period-range" id="weeklyPeriod">-</div>
+        <div class="row"><span class="k">수익금</span><span class="v" id="weeklyAmount">-</span></div>
+        <div class="row"><span class="k">수익률</span><span class="v" id="weeklyPct">-</span></div>
+        <div class="account-summary">
+          <div class="row"><span class="k">ISA</span><span class="v" id="weeklyISA">-</span></div>
+          <div class="row"><span class="k">연금</span><span class="v" id="weeklyPension">-</span></div>
+          <div class="row"><span class="k">IRP</span><span class="v" id="weeklyIRP">-</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">월간 수익률 (이번 달 1일~)</div>
+        <div class="period-range" id="monthlyPeriod">-</div>
+        <div class="row"><span class="k">수익금</span><span class="v" id="monthlyAmount">-</span></div>
+        <div class="row"><span class="k">수익률</span><span class="v" id="monthlyPct">-</span></div>
+        <div class="account-summary">
+          <div class="row"><span class="k">ISA</span><span class="v" id="monthlyISA">-</span></div>
+          <div class="row"><span class="k">연금</span><span class="v" id="monthlyPension">-</span></div>
+          <div class="row"><span class="k">IRP</span><span class="v" id="monthlyIRP">-</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
     <h2>일별 수익금</h2>
     <div class="table-wrap" id="dailyTableWrap"><div class="empty">로딩 중...</div></div>
   </section>
@@ -197,8 +236,6 @@ const fmtSignedWon = v => v === 0 ? '₩0' : (v > 0 ? '+' : '-') + '₩' + Math.
 const fmtPct       = v => v === 0 ? '0.00%' : (v > 0 ? '+' : '') + v.toFixed(2) + '%';
 const colorClass   = v => v > 0 ? 'pos' : (v < 0 ? 'neg' : 'zero');
 
-// ISA/Pension: single value (auto-trading). IRP: actual + signal pair (manual).
-// 합계는 IRP 실제(actual)만 합산. IRP 시그널은 별도 컬럼으로만 표시.
 const totalActual = r =>
   r.ISA_hybrid + r.ISA_smartsplit +
   r.Pension_hybrid + r.Pension_smartsplit +
@@ -223,6 +260,35 @@ const initialColsOf = accs => [
   (accs.IRP?.initial || 0),
   (accs.IRP?.initial || 0)
 ];
+
+// ─────────── 모드 전환 마커 (수직선 annotation)
+function buildModeAnnotations(records) {
+  const ann = {};
+  for (let i = 1; i < records.length; i++) {
+    const prev = records[i - 1].mode;
+    const cur  = records[i].mode;
+    if (prev !== cur) {
+      ann['mode' + i] = {
+        type: 'line',
+        xMin: records[i].date,
+        xMax: records[i].date,
+        borderColor: '#f87171',
+        borderDash: [6, 3],
+        borderWidth: 2,
+        label: {
+          display: true,
+          content: prev + '→' + cur,
+          position: 'start',
+          color: '#f87171',
+          backgroundColor: 'rgba(22, 33, 62, 0.85)',
+          padding: 4,
+          font: { size: 11, weight: 'bold' }
+        }
+      };
+    }
+  }
+  return ann;
+}
 
 async function load() {
   let data;
@@ -262,11 +328,12 @@ async function load() {
       el.className = 'value zero';
     });
     renderAccountCards(accs, null);
+    renderTrades([]);
+    renderPeriodSummary([]);
     document.getElementById('dailyTableWrap').innerHTML = '<div class="empty">데이터 수집 중...</div>';
     document.getElementById('cumTableWrap').innerHTML   = '<div class="empty">데이터 수집 중...</div>';
-    document.getElementById('tradesTableWrap').innerHTML = '<div class="empty">데이터 수집 중...</div>';
-    renderStrategyChart([], [], []);
-    renderAccountCharts([], accs, initialTotal);
+    renderStrategyChart([], [], [], {});
+    renderAccountCharts([], accs, initialTotal, {});
     return;
   }
 
@@ -274,7 +341,6 @@ async function load() {
   const prev = records.length > 1 ? records[records.length - 2] : null;
   const todayTotal = totalActual(last);
 
-  // 첫날은 일별 = 0
   let dailyAmount = 0, dailyPct = 0;
   if (prev) {
     const prevTotal = totalActual(prev);
@@ -292,10 +358,12 @@ async function load() {
 
   renderAccountCards(accs, last);
   renderTrades(last.trades || []);
+  renderPeriodSummary(records);
   renderProfitTable('dailyTableWrap', records, accs, 'daily');
   renderProfitTable('cumTableWrap',   records, accs, 'cumulative');
 
   const labels = records.map(r => r.date);
+  const annotations = buildModeAnnotations(records);
 
   const isaInit = accs.ISA?.initial || 0;
   const pensionInit = accs.Pension?.initial || 0;
@@ -308,7 +376,6 @@ async function load() {
     isaInit * (accs.ISA?.smartsplit_weight || 0) +
     pensionInit * (accs.Pension?.smartsplit_weight || 0);
 
-  // 전략 비교 차트: Hybrid 실제 + SmartSplit 2개만
   const hybridActualPct = records.map(r => {
     const v = r.ISA_hybrid + r.Pension_hybrid + r.IRP_hybrid_actual;
     return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
@@ -317,9 +384,9 @@ async function load() {
     const v = r.ISA_smartsplit + r.Pension_smartsplit;
     return smartInit ? ((v - smartInit) / smartInit) * 100 : 0;
   });
-  renderStrategyChart(labels, hybridActualPct, smartPct);
+  renderStrategyChart(labels, hybridActualPct, smartPct, annotations);
 
-  renderAccountCharts(records, accs, initialTotal);
+  renderAccountCharts(records, accs, initialTotal, annotations);
 }
 
 function setSummary(id, text, raw) {
@@ -331,31 +398,17 @@ function setSummary(id, text, raw) {
 function renderAccountCards(accs, last) {
   const wrap = document.getElementById('accountCards');
   wrap.innerHTML = '';
-
   const cards = [
-    {
-      key: 'ISA', label: 'ISA',
-      subs: [
+    { key: 'ISA',     label: 'ISA',  subs: [
         { name: 'Hybrid',     field: 'ISA_hybrid',     weightKey: 'hybrid_weight'     },
-        { name: 'SmartSplit', field: 'ISA_smartsplit', weightKey: 'smartsplit_weight' }
-      ]
-    },
-    {
-      key: 'Pension', label: '연금',
-      subs: [
+        { name: 'SmartSplit', field: 'ISA_smartsplit', weightKey: 'smartsplit_weight' } ] },
+    { key: 'Pension', label: '연금', subs: [
         { name: 'Hybrid',     field: 'Pension_hybrid',     weightKey: 'hybrid_weight'     },
-        { name: 'SmartSplit', field: 'Pension_smartsplit', weightKey: 'smartsplit_weight' }
-      ]
-    },
-    {
-      key: 'IRP', label: 'IRP',
-      subs: [
+        { name: 'SmartSplit', field: 'Pension_smartsplit', weightKey: 'smartsplit_weight' } ] },
+    { key: 'IRP',     label: 'IRP',  subs: [
         { name: 'Hybrid',   field: 'IRP_hybrid_actual', weightKey: 'hybrid_weight' },
-        { name: '안전자산', field: 'IRP_safe_actual',   weightKey: 'safe_weight'   }
-      ]
-    }
+        { name: '안전자산', field: 'IRP_safe_actual',   weightKey: 'safe_weight'   } ] }
   ];
-
   cards.forEach(c => {
     const a = accs[c.key] || {};
     let body = `<div class="label">${c.label}</div>`;
@@ -367,12 +420,10 @@ function renderAccountCards(accs, last) {
         const init = (a.initial || 0) * (a[x.weightKey] || 0);
         const profit = v - init;
         const pct = init > 0 ? (profit / init) * 100 : 0;
-        const cls = colorClass(pct);
         body += `<div class="row"><span class="k">${x.name}</span>` +
-                `<span class="v ${cls}">${fmtPct(pct)}` +
+                `<span class="v ${colorClass(pct)}">${fmtPct(pct)}` +
                 `<span class="sub">${fmtSignedWon(profit)}</span></span></div>`;
       });
-      // 계좌 전체 요약
       const accountInit = a.initial || 0;
       const accountProfit = total - accountInit;
       const accountPct = accountInit ? (accountProfit / accountInit) * 100 : 0;
@@ -436,8 +487,63 @@ function renderTrades(trades) {
   wrap.innerHTML = html;
 }
 
+// ─────────── 주간/월간 요약
+function periodAccountPct(records, accountKey) {
+  if (records.length < 2) return null;
+  const first = records[0];
+  const last  = records[records.length - 1];
+  const get = (r, k) => {
+    if (k === 'ISA')     return r.ISA_hybrid + r.ISA_smartsplit;
+    if (k === 'Pension') return r.Pension_hybrid + r.Pension_smartsplit;
+    return r.IRP_hybrid_actual + r.IRP_safe_actual;
+  };
+  const a = get(first, accountKey), b = get(last, accountKey);
+  return a > 0 ? ((b - a) / a) * 100 : 0;
+}
+
+function setStatRow(id, text, raw) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'v ' + (raw == null ? 'zero' : colorClass(raw));
+}
+
+function fillPeriodCard(prefix, records) {
+  const periodEl = document.getElementById(prefix + 'Period');
+  if (records.length < 2) {
+    periodEl.textContent = records.length === 1 ? records[0].date + ' (단일)' : '데이터 부족';
+    ['Amount', 'Pct', 'ISA', 'Pension', 'IRP'].forEach(s => {
+      setStatRow(prefix + s, '데이터 수집 중...', null);
+    });
+    return;
+  }
+  const first = records[0];
+  const last  = records[records.length - 1];
+  const startTotal = totalActual(first);
+  const endTotal   = totalActual(last);
+  const amount     = endTotal - startTotal;
+  const pct        = startTotal > 0 ? (amount / startTotal) * 100 : 0;
+
+  periodEl.textContent = first.date + ' ~ ' + last.date;
+  setStatRow(prefix + 'Amount', fmtSignedWon(amount), amount);
+  setStatRow(prefix + 'Pct',    fmtPct(pct),          pct);
+
+  ['ISA', 'Pension', 'IRP'].forEach(k => {
+    const p = periodAccountPct(records, k);
+    setStatRow(prefix + k, fmtPct(p == null ? 0 : p), p);
+  });
+}
+
+function renderPeriodSummary(records) {
+  const weekly = records.slice(-7);
+  const monthPrefix = (records.length ? records[records.length - 1].date : '').slice(0, 7);
+  const monthly = monthPrefix
+    ? records.filter(r => (r.date || '').startsWith(monthPrefix))
+    : [];
+  fillPeriodCard('weekly', weekly);
+  fillPeriodCard('monthly', monthly);
+}
+
 function renderProfitTable(wrapId, records, accs, mode) {
-  // 합계 = totalActual 차이 → IRP 시그널 자동 제외
   const initials = initialColsOf(accs);
   const initialTotal =
     (accs.ISA?.initial || 0) +
@@ -501,12 +607,13 @@ const chartOpts = {
   }
 };
 
-function makeOpts(showLegend) {
+function makeOpts(showLegend, annotations) {
   return {
     ...chartOpts,
     plugins: {
       ...chartOpts.plugins,
-      legend: { display: showLegend, labels: { color: '#e8e8f0', font: { size: 14 } } }
+      legend: { display: showLegend, labels: { color: '#e8e8f0', font: { size: 14 } } },
+      annotation: { annotations: annotations || {} }
     }
   };
 }
@@ -514,7 +621,7 @@ function makeOpts(showLegend) {
 let strategyChart = null;
 const accountChartInstances = {};
 
-function renderStrategyChart(labels, hybridActual, smart) {
+function renderStrategyChart(labels, hybridActual, smart, annotations) {
   const ctx = document.getElementById('strategyChart').getContext('2d');
   if (strategyChart) strategyChart.destroy();
   strategyChart = new Chart(ctx, {
@@ -530,17 +637,17 @@ function renderStrategyChart(labels, hybridActual, smart) {
           tension: 0.3, fill: false, borderWidth: 2.5 }
       ]
     },
-    options: chartOpts
+    options: makeOpts(true, annotations)
   });
 }
 
-function drawAccountChart(canvasId, labels, datasets, showLegend) {
+function drawAccountChart(canvasId, labels, datasets, showLegend, annotations) {
   const ctx = document.getElementById(canvasId).getContext('2d');
   if (accountChartInstances[canvasId]) accountChartInstances[canvasId].destroy();
   accountChartInstances[canvasId] = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
-    options: makeOpts(showLegend)
+    options: makeOpts(showLegend, annotations)
   });
 }
 
@@ -563,7 +670,8 @@ function buildStats(rows) {
   }).join('');
 }
 
-function renderAccountCharts(records, accs, initialTotal) {
+function renderAccountCharts(records, accs, initialTotal, annotations) {
+  const ann = annotations || {};
   const isaInit = accs.ISA?.initial || 0;
   const pensionInit = accs.Pension?.initial || 0;
   const irpInit = accs.IRP?.initial || 0;
@@ -573,19 +681,18 @@ function renderAccountCharts(records, accs, initialTotal) {
     ['isaStats', 'pensionStats', 'irpStats', 'totalStats'].forEach(id => {
       document.getElementById(id).innerHTML = '<span class="zero">데이터 수집 중</span>';
     });
-    drawAccountChart('isaChart',     labels, [{ label: 'ISA',  data: [], borderColor: '#fbbf24' }], false);
-    drawAccountChart('pensionChart', labels, [{ label: '연금', data: [], borderColor: '#a78bfa' }], false);
+    drawAccountChart('isaChart',     labels, [{ label: 'ISA',  data: [], borderColor: '#fbbf24' }], false, ann);
+    drawAccountChart('pensionChart', labels, [{ label: '연금', data: [], borderColor: '#a78bfa' }], false, ann);
     drawAccountChart('irpChart',     labels, [
       { label: 'IRP 실제',   data: [], borderColor: '#fb923c' },
       { label: 'IRP 시그널', data: [], borderColor: '#fb923c', borderDash: [6,4] }
-    ], true);
-    drawAccountChart('totalChart',   labels, [{ label: '전체', data: [], borderColor: '#e8e8f0' }], false);
+    ], true, ann);
+    drawAccountChart('totalChart',   labels, [{ label: '전체', data: [], borderColor: '#e8e8f0' }], false, ann);
     return;
   }
 
   const last = records[records.length - 1];
 
-  // ISA
   const isaSeries = records.map(r =>
     isaInit ? (((r.ISA_hybrid + r.ISA_smartsplit) - isaInit) / isaInit) * 100 : 0);
   const isaProfit = (last.ISA_hybrid + last.ISA_smartsplit) - isaInit;
@@ -598,9 +705,8 @@ function renderAccountCharts(records, accs, initialTotal) {
     { label: 'ISA', data: isaSeries,
       borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.10)',
       tension: 0.3, fill: false, borderWidth: 2.5 }
-  ], false);
+  ], false, ann);
 
-  // 연금
   const pensionSeries = records.map(r =>
     pensionInit ? (((r.Pension_hybrid + r.Pension_smartsplit) - pensionInit) / pensionInit) * 100 : 0);
   const pensionProfit = (last.Pension_hybrid + last.Pension_smartsplit) - pensionInit;
@@ -613,9 +719,8 @@ function renderAccountCharts(records, accs, initialTotal) {
     { label: '연금', data: pensionSeries,
       borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.10)',
       tension: 0.3, fill: false, borderWidth: 2.5 }
-  ], false);
+  ], false, ann);
 
-  // IRP (실제 + 시그널)
   const irpActSeries = records.map(r =>
     irpInit ? ((irpActual(r) - irpInit) / irpInit) * 100 : 0);
   const irpSigSeries = records.map(r =>
@@ -637,9 +742,8 @@ function renderAccountCharts(records, accs, initialTotal) {
     { label: 'IRP 시그널', data: irpSigSeries,
       borderColor: '#fb923c', borderDash: [6, 4],
       tension: 0.3, fill: false, borderWidth: 1.5, pointRadius: 2 }
-  ], true);
+  ], true, ann);
 
-  // 전체
   const totalSeries = records.map(r =>
     initialTotal ? ((totalActual(r) - initialTotal) / initialTotal) * 100 : 0);
   const totalProfit = totalActual(last) - initialTotal;
@@ -652,7 +756,7 @@ function renderAccountCharts(records, accs, initialTotal) {
     { label: '전체', data: totalSeries,
       borderColor: '#e8e8f0', backgroundColor: 'rgba(232,232,240,0.10)',
       tension: 0.3, fill: false, borderWidth: 3 }
-  ], false);
+  ], false, ann);
 }
 
 load();

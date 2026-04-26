@@ -274,6 +274,49 @@ def fmt_signed_won(v):
     return ("+" if v > 0 else "-") + "₩" + f"{abs(v):,}"
 
 
+def fmt_pct(v):
+    if v == 0:
+        return "0.00%"
+    return ("+" if v > 0 else "") + f"{v:.2f}%"
+
+
+def build_daily_alert(daily_pct, daily_amt, total_actual):
+    """단계별 일일 수익률 경고 메시지 생성. 해당 없으면 None."""
+    if daily_pct >= 5:
+        return (
+            "🚀 일일 수익률 경고 (급등)\n"
+            f"수익률: {fmt_pct(daily_pct)}\n"
+            f"수익금: {fmt_signed_won(daily_amt)}\n"
+            f"총자산: {fmt_won(total_actual)}\n"
+            "즉시 확인 필요!"
+        )
+    if daily_pct <= -5:
+        return (
+            "🚨 일일 수익률 경고 (급락)\n"
+            f"수익률: {fmt_pct(daily_pct)}\n"
+            f"손실금: {fmt_signed_won(daily_amt)}\n"
+            f"총자산: {fmt_won(total_actual)}\n"
+            "즉시 확인 필요!"
+        )
+    if daily_pct >= 3:
+        return (
+            "⚠️ 일일 수익률 주의 (급등)\n"
+            f"수익률: {fmt_pct(daily_pct)}\n"
+            f"수익금: {fmt_signed_won(daily_amt)}\n"
+            f"총자산: {fmt_won(total_actual)}\n"
+            "확인 바랍니다."
+        )
+    if daily_pct <= -3:
+        return (
+            "⚠️ 일일 수익률 주의 (급락)\n"
+            f"수익률: {fmt_pct(daily_pct)}\n"
+            f"손실금: {fmt_signed_won(daily_amt)}\n"
+            f"총자산: {fmt_won(total_actual)}\n"
+            "확인 바랍니다."
+        )
+    return None
+
+
 def main():
     today = datetime.date.today().isoformat()
     print(f"[{today}] AutobotEx Dashboard 업데이트 시작")
@@ -329,6 +372,23 @@ def main():
         daily["accounts"]["IRP"]["initial"]
     )
     cum_amount = total_actual - initial_total
+
+    # 단계별 일일 수익률 경고 (전날 대비 ±3% 주의 / ±5% 경고)
+    records_after = daily.get("daily_records", [])
+    if len(records_after) >= 2:
+        prev_rec = records_after[-2]
+        prev_total = (
+            prev_rec.get("ISA_hybrid", 0) + prev_rec.get("ISA_smartsplit", 0) +
+            prev_rec.get("Pension_hybrid", 0) + prev_rec.get("Pension_smartsplit", 0) +
+            prev_rec.get("IRP_hybrid_actual", 0) + prev_rec.get("IRP_safe_actual", 0)
+        )
+        if prev_total > 0:
+            daily_amt = total_actual - prev_total
+            daily_pct = (daily_amt / prev_total) * 100
+            alert = build_daily_alert(daily_pct, daily_amt, total_actual)
+            if alert:
+                discord_notify(alert)
+                print(f"  단계별 알림 전송: {fmt_pct(daily_pct)}")
 
     msg = (
         "📊 대시보드 업데이트 완료\n"

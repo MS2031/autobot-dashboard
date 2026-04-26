@@ -379,9 +379,13 @@ def main():
     cum_amount = total_actual - initial_total
 
     # 단계별 일일 수익률 경고 (전날 대비 ±3% 주의 / ±5% 경고)
-    records_after = daily.get("daily_records", [])
-    if len(records_after) >= 2:
-        prev_rec = records_after[-2]
+    # date < today 인 레코드 중 가장 최근 것을 prev로 사용 (미래 더미 레코드에 영향 없음)
+    prev_recs = [
+        r for r in daily.get("daily_records", [])
+        if r.get("date", "") < today
+    ]
+    if prev_recs:
+        prev_rec = prev_recs[-1]
         prev_total = (
             prev_rec.get("ISA_hybrid", 0) + prev_rec.get("ISA_smartsplit", 0) +
             prev_rec.get("Pension_hybrid", 0) + prev_rec.get("Pension_smartsplit", 0) +
@@ -393,7 +397,7 @@ def main():
             alert = build_daily_alert(daily_pct, daily_amt, total_actual)
             if alert:
                 discord_notify(alert)
-                print(f"  단계별 알림 전송: {fmt_pct(daily_pct)}")
+                print(f"  단계별 알림 전송 (prev={prev_rec.get('date')}): {fmt_pct(daily_pct)}")
 
     msg = (
         "📊 대시보드 업데이트 완료\n"

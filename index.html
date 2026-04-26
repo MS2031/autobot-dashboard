@@ -114,11 +114,6 @@
   </section>
 
   <section>
-    <h2>전략 비교 (Hybrid 실제 vs 시그널, SmartSplit)</h2>
-    <div class="chart-card"><div class="chart-wrap"><canvas id="strategyChart"></canvas></div></div>
-  </section>
-
-  <section>
     <h2>계좌별 누적 수익률</h2>
     <div class="chart-card"><div class="chart-wrap"><canvas id="accountChart"></canvas></div></div>
   </section>
@@ -133,6 +128,11 @@
     <div class="table-wrap" id="cumTableWrap"><div class="empty">로딩 중...</div></div>
   </section>
 
+  <section>
+    <h2>전략 비교 (Hybrid vs SmartSplit)</h2>
+    <div class="chart-card"><div class="chart-wrap"><canvas id="strategyChart"></canvas></div></div>
+  </section>
+
 <script>
 const fmtWon       = v => '₩' + Math.round(v).toLocaleString('ko-KR');
 const fmtSignedWon = v => v === 0 ? '₩0' : (v > 0 ? '+' : '-') + '₩' + Math.abs(Math.round(v)).toLocaleString('ko-KR');
@@ -140,6 +140,7 @@ const fmtPct       = v => v === 0 ? '0.00%' : (v > 0 ? '+' : '') + v.toFixed(2) 
 const colorClass   = v => v > 0 ? 'pos' : (v < 0 ? 'neg' : 'zero');
 
 // ISA/Pension: single value (auto-trading). IRP: actual + signal pair (manual).
+// 합계는 IRP 실제(actual)만 합산. IRP 시그널은 별도 컬럼으로만 표시.
 const totalActual = r =>
   r.ISA_hybrid + r.ISA_smartsplit +
   r.Pension_hybrid + r.Pension_smartsplit +
@@ -206,7 +207,7 @@ async function load() {
     renderAccountCards(accs, null);
     document.getElementById('dailyTableWrap').innerHTML = '<div class="empty">데이터 수집 중...</div>';
     document.getElementById('cumTableWrap').innerHTML   = '<div class="empty">데이터 수집 중...</div>';
-    renderStrategyChart([], [], [], []);
+    renderStrategyChart([], [], []);
     renderAccountChart([], [], [], [], []);
     return;
   }
@@ -248,19 +249,16 @@ async function load() {
     isaInit * (accs.ISA?.smartsplit_weight || 0) +
     pensionInit * (accs.Pension?.smartsplit_weight || 0);
 
+  // 종목 배치가 3계좌 동일하므로 Hybrid 시그널 선은 표시하지 않음 (실제 + SmartSplit 2개만)
   const hybridActualPct = records.map(r => {
     const v = r.ISA_hybrid + r.Pension_hybrid + r.IRP_hybrid_actual;
-    return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
-  });
-  const hybridSignalPct = records.map(r => {
-    const v = r.ISA_hybrid + r.Pension_hybrid + r.IRP_hybrid_signal;
     return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
   });
   const smartPct = records.map(r => {
     const v = r.ISA_smartsplit + r.Pension_smartsplit;
     return smartInit ? ((v - smartInit) / smartInit) * 100 : 0;
   });
-  renderStrategyChart(labels, hybridActualPct, hybridSignalPct, smartPct);
+  renderStrategyChart(labels, hybridActualPct, smartPct);
 
   const isaPct = records.map(r =>
     isaInit ? (((r.ISA_hybrid + r.ISA_smartsplit) - isaInit) / isaInit) * 100 : 0);
@@ -348,9 +346,12 @@ function renderAccountCards(accs, last) {
 }
 
 function renderProfitTable(wrapId, records, accs, mode) {
-  // records is asc-sorted; compute then render desc
+  // 합계 = totalActual 차이 → IRP 시그널 자동 제외
   const initials = initialColsOf(accs);
-  const initialTotal = initials.slice(0, 5).reduce((s, v) => s + v, 0);
+  const initialTotal =
+    (accs.ISA?.initial || 0) +
+    (accs.Pension?.initial || 0) +
+    (accs.IRP?.initial || 0);
 
   const rows = records.map((r, i) => {
     const cur = colsOf(r);
@@ -411,7 +412,7 @@ const chartOpts = {
 
 let strategyChart = null, accountChart = null;
 
-function renderStrategyChart(labels, hybridActual, hybridSignal, smart) {
+function renderStrategyChart(labels, hybridActual, smart) {
   const ctx = document.getElementById('strategyChart').getContext('2d');
   if (strategyChart) strategyChart.destroy();
   strategyChart = new Chart(ctx, {
@@ -419,13 +420,10 @@ function renderStrategyChart(labels, hybridActual, hybridSignal, smart) {
     data: {
       labels,
       datasets: [
-        { label: 'Hybrid 실제',   data: hybridActual,
+        { label: 'Hybrid',     data: hybridActual,
           borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.10)',
           tension: 0.3, fill: false, borderWidth: 2.5 },
-        { label: 'Hybrid 시그널', data: hybridSignal,
-          borderColor: '#4ade80', borderDash: [6, 4],
-          tension: 0.3, fill: false, borderWidth: 1.5, pointRadius: 2 },
-        { label: 'SmartSplit',    data: smart,
+        { label: 'SmartSplit', data: smart,
           borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.10)',
           tension: 0.3, fill: false, borderWidth: 2.5 }
       ]

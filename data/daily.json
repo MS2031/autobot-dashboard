@@ -3,17 +3,17 @@
   "mode": "공격",
   "accounts": {
     "ISA": {
-      "initial": 82230000,
+      "initial": 82234894,
       "hybrid_weight": 0.55,
       "smartsplit_weight": 0.45
     },
     "Pension": {
-      "initial": 49030000,
+      "initial": 49039504,
       "hybrid_weight": 0.75,
       "smartsplit_weight": 0.25
     },
     "IRP": {
-      "initial": 37240000,
+      "initial": 37246917,
       "hybrid_weight": 0.70,
       "safe_weight": 0.30
     }
@@ -22,14 +22,14 @@
     {
       "date": "2026-04-28",
       "mode": "공격",
-      "ISA_hybrid": 45226500,
-      "ISA_smartsplit": 37003500,
-      "Pension_hybrid": 36772500,
-      "Pension_smartsplit": 12257500,
-      "IRP_hybrid_actual": 26068000,
-      "IRP_hybrid_signal": 26068000,
-      "IRP_safe_actual": 11172000,
-      "IRP_safe_signal": 11172000
+      "ISA_hybrid": 45229192,
+      "ISA_smartsplit": 37005702,
+      "Pension_hybrid": 36779628,
+      "Pension_smartsplit": 12259876,
+      "IRP_hybrid_actual": 26072842,
+      "IRP_hybrid_signal": 26072842,
+      "IRP_safe_actual": 11174075,
+      "IRP_safe_signal": 11174075
     }
   ]
 }

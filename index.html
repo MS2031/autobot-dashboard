@@ -55,12 +55,11 @@
     .badge-attack { background: #be185d; color: #fff; }
     .badge-defense { background: #1e40af; color: #fff; }
 
-    .diff-row {
+    .account-summary {
       margin-top: 12px; padding-top: 12px; border-top: 1px solid #2a3656;
-      display: flex; justify-content: space-between; align-items: center; font-size: 15px;
     }
-    .diff-row .k { color: #8a8aa3; }
-    .diff-row .v { font-weight: 700; }
+    .account-summary .row:first-child { margin-top: 0; }
+    .account-summary .row .v { font-weight: 700; }
 
     .chart-card { background: #16213e; border-radius: 10px; padding: 20px; }
     .chart-wrap { position: relative; height: 360px; }
@@ -366,6 +365,15 @@ function renderAccountCards(accs, last) {
                 `<span class="v ${cls}">${fmtPct(pct)}` +
                 `<span class="sub">${fmtSignedWon(profit)}</span></span></div>`;
       });
+      // 계좌 전체 요약
+      const accountInit = a.initial || 0;
+      const accountProfit = total - accountInit;
+      const accountPct = accountInit ? (accountProfit / accountInit) * 100 : 0;
+      let summary = '';
+      summary += `<div class="row"><span class="k">계좌 수익률</span>` +
+                 `<span class="v ${colorClass(accountPct)}">${fmtPct(accountPct)}</span></div>`;
+      summary += `<div class="row"><span class="k">계좌 수익금</span>` +
+                 `<span class="v ${colorClass(accountProfit)}">${fmtSignedWon(accountProfit)}</span></div>`;
       if (c.key === 'IRP') {
         const sig = irpSignal(last);
         const act = irpActual(last);
@@ -375,10 +383,11 @@ function renderAccountCards(accs, last) {
           if (Math.abs(diffPct) < 0.005) tag = '동일';
           else if (diffPct > 0) tag = '초과수익';
           else tag = '미달';
-          body += `<div class="diff-row"><span class="k">실제 vs 시그널</span>` +
-                  `<span class="v ${colorClass(diffPct)}">${fmtPct(diffPct)} ${tag}</span></div>`;
+          summary += `<div class="row"><span class="k">실제 vs 시그널</span>` +
+                     `<span class="v ${colorClass(diffPct)}">${fmtPct(diffPct)} ${tag}</span></div>`;
         }
       }
+      body += `<div class="account-summary">${summary}</div>`;
     } else {
       body += `<div class="value neutral">${fmtWon(a.initial || 0)}</div>` +
               `<div class="row"><span class="k">상태</span><span class="v">데이터 수집 중</span></div>`;

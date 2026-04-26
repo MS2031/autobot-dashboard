@@ -49,19 +49,17 @@
     .diff-row .v { font-weight: 700; }
     .chart-card { background: #16213e; border-radius: 10px; padding: 16px; }
     .chart-wrap { position: relative; height: 320px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th, td { padding: 8px 6px; text-align: right; border-bottom: 1px solid #2a3656; white-space: nowrap; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid #2a3656; white-space: nowrap; }
     th:first-child, td:first-child { text-align: left; }
     th { color: #8a8aa3; font-weight: 600; background: #1e2a4a; position: sticky; top: 0; z-index: 1; }
-    th.group { border-left: 1px solid #2a3656; border-right: 1px solid #2a3656; text-align: center; }
-    .sub-actual { color: #b8b8d0; font-size: 11px; }
-    .sub-signal { color: #6b7299; font-size: 11px; font-style: italic; }
+    .col-irp-signal { color: #6b7299; font-style: italic; }
     .empty { text-align: center; padding: 40px; color: #8a8aa3; font-size: 14px; }
     .table-wrap { background: #16213e; border-radius: 10px; padding: 8px; max-height: 460px; overflow: auto; }
     @media (max-width: 600px) {
       h1 { font-size: 18px; }
       .value { font-size: 18px; }
-      th, td { padding: 6px 4px; font-size: 11px; }
+      th, td { padding: 8px 4px; font-size: 12px; }
       .chart-wrap { height: 240px; }
     }
   </style>
@@ -73,7 +71,7 @@
   <section>
     <h2>전체 요약</h2>
     <div class="grid grid-4">
-      <div class="card"><div class="label">총 자산 (실제)</div><div class="value neutral" id="totalAsset">-</div></div>
+      <div class="card"><div class="label">총 자산</div><div class="value neutral" id="totalAsset">-</div></div>
       <div class="card"><div class="label">오늘 수익률</div><div class="value" id="todayReturn">-</div></div>
       <div class="card"><div class="label">누적 수익률</div><div class="value" id="cumReturn">-</div></div>
       <div class="card"><div class="label">현재 모드</div><div class="value"><span class="badge" id="modeBadge">-</span></div></div>
@@ -86,17 +84,17 @@
   </section>
 
   <section>
-    <h2>전략 비교 (실제 vs 시그널 누적 수익률)</h2>
+    <h2>전략 비교 (Hybrid 실제 vs 시그널, SmartSplit)</h2>
     <div class="chart-card"><div class="chart-wrap"><canvas id="strategyChart"></canvas></div></div>
   </section>
 
   <section>
-    <h2>계좌별 누적 수익률 (실제)</h2>
+    <h2>계좌별 누적 수익률</h2>
     <div class="chart-card"><div class="chart-wrap"><canvas id="accountChart"></canvas></div></div>
   </section>
 
   <section>
-    <h2>일별 수익률 (실제 / 시그널)</h2>
+    <h2>일별 수익률</h2>
     <div class="table-wrap" id="tableWrap"><div class="empty">로딩 중...</div></div>
   </section>
 
@@ -107,18 +105,19 @@ const fmt = {
   cls: v => v > 0 ? 'pos' : (v < 0 ? 'neg' : 'neutral')
 };
 
-const SUB_LABEL = { hybrid: 'Hybrid', smartsplit: 'SmartSplit', safe: '안전자산' };
+// ISA/Pension: single value (auto-trading). IRP: actual + signal pair (manual).
+const totalActual = r =>
+  r.ISA_hybrid + r.ISA_smartsplit +
+  r.Pension_hybrid + r.Pension_smartsplit +
+  r.IRP_hybrid_actual + r.IRP_safe_actual;
 
-const ASSET_FIELDS = [
-  ['ISA', 'hybrid'], ['ISA', 'smartsplit'],
-  ['Pension', 'hybrid'], ['Pension', 'smartsplit'],
-  ['IRP', 'hybrid'], ['IRP', 'safe']
-];
+const totalSignal = r =>
+  r.ISA_hybrid + r.ISA_smartsplit +
+  r.Pension_hybrid + r.Pension_smartsplit +
+  r.IRP_hybrid_signal + r.IRP_safe_signal;
 
-const sumOf = (r, kind) =>
-  ASSET_FIELDS.reduce((s, [a, t]) => s + (r[`${a}_${t}_${kind}`] || 0), 0);
-const totalActual = r => sumOf(r, 'actual');
-const totalSignal = r => sumOf(r, 'signal');
+const irpActual = r => r.IRP_hybrid_actual + r.IRP_safe_actual;
+const irpSignal = r => r.IRP_hybrid_signal + r.IRP_safe_signal;
 
 async function load() {
   let data;
@@ -157,8 +156,8 @@ async function load() {
     renderAccountCards(accs, null);
     document.getElementById('tableWrap').innerHTML =
       '<div class="empty">데이터 수집 중...</div>';
-    renderStrategyChart([], [], [], [], []);
-    renderAccountChart([], [], [], []);
+    renderStrategyChart([], [], [], []);
+    renderAccountChart([], [], [], [], []);
     return;
   }
 
@@ -182,88 +181,105 @@ async function load() {
 
   const labels = records.map(r => r.date);
 
-  const hybridInit =
-    (accs.ISA?.initial || 0) * (accs.ISA?.hybrid_weight || 0) +
-    (accs.Pension?.initial || 0) * (accs.Pension?.hybrid_weight || 0) +
-    (accs.IRP?.initial || 0) * (accs.IRP?.hybrid_weight || 0);
-  const smartsplitInit =
-    (accs.ISA?.initial || 0) * (accs.ISA?.smartsplit_weight || 0) +
-    (accs.Pension?.initial || 0) * (accs.Pension?.smartsplit_weight || 0);
-
-  const hybridActualPct = records.map(r => {
-    const v = r.ISA_hybrid_actual + r.Pension_hybrid_actual + r.IRP_hybrid_actual;
-    return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
-  });
-  const hybridSignalPct = records.map(r => {
-    const v = r.ISA_hybrid_signal + r.Pension_hybrid_signal + r.IRP_hybrid_signal;
-    return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
-  });
-  const smartActualPct = records.map(r => {
-    const v = r.ISA_smartsplit_actual + r.Pension_smartsplit_actual;
-    return smartsplitInit ? ((v - smartsplitInit) / smartsplitInit) * 100 : 0;
-  });
-  const smartSignalPct = records.map(r => {
-    const v = r.ISA_smartsplit_signal + r.Pension_smartsplit_signal;
-    return smartsplitInit ? ((v - smartsplitInit) / smartsplitInit) * 100 : 0;
-  });
-  renderStrategyChart(labels, hybridActualPct, hybridSignalPct, smartActualPct, smartSignalPct);
-
   const isaInit = accs.ISA?.initial || 0;
   const pensionInit = accs.Pension?.initial || 0;
   const irpInit = accs.IRP?.initial || 0;
+
+  const hybridInit =
+    isaInit * (accs.ISA?.hybrid_weight || 0) +
+    pensionInit * (accs.Pension?.hybrid_weight || 0) +
+    irpInit * (accs.IRP?.hybrid_weight || 0);
+  const smartInit =
+    isaInit * (accs.ISA?.smartsplit_weight || 0) +
+    pensionInit * (accs.Pension?.smartsplit_weight || 0);
+
+  const hybridActualPct = records.map(r => {
+    const v = r.ISA_hybrid + r.Pension_hybrid + r.IRP_hybrid_actual;
+    return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
+  });
+  const hybridSignalPct = records.map(r => {
+    const v = r.ISA_hybrid + r.Pension_hybrid + r.IRP_hybrid_signal;
+    return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
+  });
+  const smartPct = records.map(r => {
+    const v = r.ISA_smartsplit + r.Pension_smartsplit;
+    return smartInit ? ((v - smartInit) / smartInit) * 100 : 0;
+  });
+  renderStrategyChart(labels, hybridActualPct, hybridSignalPct, smartPct);
+
   const isaPct = records.map(r =>
-    isaInit ? (((r.ISA_hybrid_actual + r.ISA_smartsplit_actual) - isaInit) / isaInit) * 100 : 0);
+    isaInit ? (((r.ISA_hybrid + r.ISA_smartsplit) - isaInit) / isaInit) * 100 : 0);
   const pensionPct = records.map(r =>
-    pensionInit ? (((r.Pension_hybrid_actual + r.Pension_smartsplit_actual) - pensionInit) / pensionInit) * 100 : 0);
-  const irpPct = records.map(r =>
-    irpInit ? (((r.IRP_hybrid_actual + r.IRP_safe_actual) - irpInit) / irpInit) * 100 : 0);
-  renderAccountChart(labels, isaPct, pensionPct, irpPct);
+    pensionInit ? (((r.Pension_hybrid + r.Pension_smartsplit) - pensionInit) / pensionInit) * 100 : 0);
+  const irpActualPct = records.map(r =>
+    irpInit ? ((irpActual(r) - irpInit) / irpInit) * 100 : 0);
+  const irpSignalPct = records.map(r =>
+    irpInit ? ((irpSignal(r) - irpInit) / irpInit) * 100 : 0);
+  renderAccountChart(labels, isaPct, pensionPct, irpActualPct, irpSignalPct);
 }
 
 function renderAccountCards(accs, last) {
   const wrap = document.getElementById('accountCards');
   wrap.innerHTML = '';
-  const defs = [
-    { key: 'ISA',     label: 'ISA',  sub: ['hybrid', 'smartsplit'] },
-    { key: 'Pension', label: '연금', sub: ['hybrid', 'smartsplit'] },
-    { key: 'IRP',     label: 'IRP',  sub: ['hybrid', 'safe']       }
+
+  const cards = [
+    {
+      key: 'ISA', label: 'ISA',
+      subs: [
+        { name: 'Hybrid',     field: 'ISA_hybrid',     weightKey: 'hybrid_weight'     },
+        { name: 'SmartSplit', field: 'ISA_smartsplit', weightKey: 'smartsplit_weight' }
+      ]
+    },
+    {
+      key: 'Pension', label: '연금',
+      subs: [
+        { name: 'Hybrid',     field: 'Pension_hybrid',     weightKey: 'hybrid_weight'     },
+        { name: 'SmartSplit', field: 'Pension_smartsplit', weightKey: 'smartsplit_weight' }
+      ]
+    },
+    {
+      key: 'IRP', label: 'IRP',
+      subs: [
+        { name: 'Hybrid',   field: 'IRP_hybrid_actual', weightKey: 'hybrid_weight' },
+        { name: '안전자산', field: 'IRP_safe_actual',   weightKey: 'safe_weight'   }
+      ]
+    }
   ];
-  defs.forEach(d => {
-    const a = accs[d.key] || {};
-    let body = `<div class="label">${d.label}</div>`;
+
+  cards.forEach(c => {
+    const a = accs[c.key] || {};
+    let body = `<div class="label">${c.label}</div>`;
     if (last) {
-      let totalAct = 0, totalSig = 0;
-      d.sub.forEach(s => {
-        totalAct += last[`${d.key}_${s}_actual`] || 0;
-        totalSig += last[`${d.key}_${s}_signal`] || 0;
-      });
-      body += `<div class="value neutral">${fmt.won(totalAct)}</div>`;
-      d.sub.forEach(s => {
-        const v = last[`${d.key}_${s}_actual`] || 0;
-        const w = a[`${s}_weight`] || 0;
-        const init = (a.initial || 0) * w;
+      const total = c.subs.reduce((s, x) => s + (last[x.field] || 0), 0);
+      body += `<div class="value neutral">${fmt.won(total)}</div>`;
+      c.subs.forEach(x => {
+        const v = last[x.field] || 0;
+        const init = (a.initial || 0) * (a[x.weightKey] || 0);
         const pct = init > 0 ? ((v - init) / init) * 100 : 0;
-        body += `<div class="row"><span class="k">${SUB_LABEL[s]}</span>` +
+        body += `<div class="row"><span class="k">${x.name}</span>` +
                 `<span class="v ${fmt.cls(pct)}">${fmt.pct(pct)} ` +
                 `<span style="color:#8a8aa3;font-weight:400">(${fmt.won(v)})</span></span></div>`;
       });
-      if (d.key === 'IRP' && totalSig > 0) {
-        const diffPct = ((totalAct - totalSig) / totalSig) * 100;
-        let tag;
-        if (Math.abs(diffPct) < 0.005) tag = '동일';
-        else if (diffPct > 0) tag = '초과수익';
-        else tag = '미달';
-        body += `<div class="diff-row"><span class="k">실제 vs 시그널</span>` +
-                `<span class="v ${fmt.cls(diffPct)}">${fmt.pct(diffPct)} ${tag}</span></div>`;
+      if (c.key === 'IRP') {
+        const sig = irpSignal(last);
+        if (sig > 0) {
+          const diffPct = ((irpActual(last) - sig) / sig) * 100;
+          let tag;
+          if (Math.abs(diffPct) < 0.005) tag = '동일';
+          else if (diffPct > 0) tag = '초과수익';
+          else tag = '미달';
+          body += `<div class="diff-row"><span class="k">실제 vs 시그널</span>` +
+                  `<span class="v ${fmt.cls(diffPct)}">${fmt.pct(diffPct)} ${tag}</span></div>`;
+        }
       }
     } else {
       body += `<div class="value neutral">${fmt.won(a.initial || 0)}</div>` +
               `<div class="row"><span class="k">상태</span><span class="v">데이터 수집 중</span></div>`;
     }
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = body;
-    wrap.appendChild(card);
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = body;
+    wrap.appendChild(el);
   });
 }
 
@@ -272,35 +288,25 @@ function renderTable(records) {
   let html = `<table>
     <thead>
       <tr>
-        <th rowspan="2">날짜</th>
-        <th class="group" colspan="2">ISA Hybrid</th>
-        <th class="group" colspan="2">ISA SmartSplit</th>
-        <th class="group" colspan="2">연금 Hybrid</th>
-        <th class="group" colspan="2">연금 SmartSplit</th>
-        <th class="group" colspan="2">IRP Hybrid</th>
-        <th rowspan="2">합계 (실제)</th>
-      </tr>
-      <tr>
-        <th class="sub-actual">실제</th><th class="sub-signal">시그널</th>
-        <th class="sub-actual">실제</th><th class="sub-signal">시그널</th>
-        <th class="sub-actual">실제</th><th class="sub-signal">시그널</th>
-        <th class="sub-actual">실제</th><th class="sub-signal">시그널</th>
-        <th class="sub-actual">실제</th><th class="sub-signal">시그널</th>
+        <th>날짜</th>
+        <th>ISA Hybrid</th>
+        <th>ISA Smart</th>
+        <th>연금 Hybrid</th>
+        <th>연금 Smart</th>
+        <th>IRP 실제</th>
+        <th class="col-irp-signal">IRP 시그널</th>
+        <th>합계</th>
       </tr>
     </thead><tbody>`;
   sorted.forEach(r => {
     html += `<tr>
       <td>${r.date}</td>
-      <td>${fmt.won(r.ISA_hybrid_actual)}</td>
-      <td class="sub-signal">${fmt.won(r.ISA_hybrid_signal)}</td>
-      <td>${fmt.won(r.ISA_smartsplit_actual)}</td>
-      <td class="sub-signal">${fmt.won(r.ISA_smartsplit_signal)}</td>
-      <td>${fmt.won(r.Pension_hybrid_actual)}</td>
-      <td class="sub-signal">${fmt.won(r.Pension_hybrid_signal)}</td>
-      <td>${fmt.won(r.Pension_smartsplit_actual)}</td>
-      <td class="sub-signal">${fmt.won(r.Pension_smartsplit_signal)}</td>
-      <td>${fmt.won(r.IRP_hybrid_actual)}</td>
-      <td class="sub-signal">${fmt.won(r.IRP_hybrid_signal)}</td>
+      <td>${fmt.won(r.ISA_hybrid)}</td>
+      <td>${fmt.won(r.ISA_smartsplit)}</td>
+      <td>${fmt.won(r.Pension_hybrid)}</td>
+      <td>${fmt.won(r.Pension_smartsplit)}</td>
+      <td>${fmt.won(irpActual(r))}</td>
+      <td class="col-irp-signal">${fmt.won(irpSignal(r))}</td>
       <td><strong>${fmt.won(totalActual(r))}</strong></td>
     </tr>`;
   });
@@ -323,7 +329,7 @@ const chartOpts = {
 
 let strategyChart = null, accountChart = null;
 
-function renderStrategyChart(labels, hybridActual, hybridSignal, smartActual, smartSignal) {
+function renderStrategyChart(labels, hybridActual, hybridSignal, smart) {
   const ctx = document.getElementById('strategyChart').getContext('2d');
   if (strategyChart) strategyChart.destroy();
   strategyChart = new Chart(ctx, {
@@ -331,25 +337,22 @@ function renderStrategyChart(labels, hybridActual, hybridSignal, smartActual, sm
     data: {
       labels,
       datasets: [
-        { label: 'Hybrid 실제',     data: hybridActual,
+        { label: 'Hybrid 실제',   data: hybridActual,
           borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.10)',
           tension: 0.3, fill: false, borderWidth: 2.5 },
-        { label: 'Hybrid 시그널',   data: hybridSignal,
+        { label: 'Hybrid 시그널', data: hybridSignal,
           borderColor: '#4ade80', borderDash: [6, 4],
           tension: 0.3, fill: false, borderWidth: 1.5, pointRadius: 2 },
-        { label: 'SmartSplit 실제', data: smartActual,
+        { label: 'SmartSplit',    data: smart,
           borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.10)',
-          tension: 0.3, fill: false, borderWidth: 2.5 },
-        { label: 'SmartSplit 시그널', data: smartSignal,
-          borderColor: '#60a5fa', borderDash: [6, 4],
-          tension: 0.3, fill: false, borderWidth: 1.5, pointRadius: 2 }
+          tension: 0.3, fill: false, borderWidth: 2.5 }
       ]
     },
     options: chartOpts
   });
 }
 
-function renderAccountChart(labels, isa, pension, irp) {
+function renderAccountChart(labels, isa, pension, irpActual, irpSignal) {
   const ctx = document.getElementById('accountChart').getContext('2d');
   if (accountChart) accountChart.destroy();
   accountChart = new Chart(ctx, {
@@ -357,9 +360,10 @@ function renderAccountChart(labels, isa, pension, irp) {
     data: {
       labels,
       datasets: [
-        { label: 'ISA',  data: isa,     borderColor: '#fbbf24', tension: 0.3, borderWidth: 2 },
-        { label: '연금', data: pension, borderColor: '#a78bfa', tension: 0.3, borderWidth: 2 },
-        { label: 'IRP',  data: irp,     borderColor: '#fb923c', tension: 0.3, borderWidth: 2 }
+        { label: 'ISA',         data: isa,       borderColor: '#fbbf24', tension: 0.3, borderWidth: 2 },
+        { label: '연금',        data: pension,   borderColor: '#a78bfa', tension: 0.3, borderWidth: 2 },
+        { label: 'IRP 실제',    data: irpActual, borderColor: '#fb923c', tension: 0.3, borderWidth: 2.5 },
+        { label: 'IRP 시그널',  data: irpSignal, borderColor: '#fb923c', borderDash: [6, 4], tension: 0.3, borderWidth: 1.5, pointRadius: 2 }
       ]
     },
     options: chartOpts

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutobotEx 자동매매 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+      background: #1a1a2e;
+      color: #e8e8f0;
+      padding: 16px;
+      min-height: 100vh;
+    }
+    h1 { font-size: 22px; margin-bottom: 6px; }
+    .subtitle { color: #8a8aa3; font-size: 13px; margin-bottom: 20px; }
+    section { margin-bottom: 28px; }
+    h2 {
+      font-size: 16px; margin-bottom: 12px; color: #b8b8d0;
+      border-left: 3px solid #4a90e2; padding-left: 10px;
+    }
+    .grid { display: grid; gap: 12px; }
+    .grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card {
+      background: #16213e;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .label { font-size: 12px; color: #8a8aa3; margin-bottom: 6px; }
+    .value { font-size: 22px; font-weight: 700; }
+    .pos { color: #4ade80; }
+    .neg { color: #f87171; }
+    .neutral { color: #e8e8f0; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: 600; }
+    .badge-attack { background: #be185d; color: #fff; }
+    .badge-defense { background: #1e40af; color: #fff; }
+    .row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; font-size: 13px; }
+    .row .k { color: #8a8aa3; }
+    .row .v { font-weight: 600; }
+    .diff-row {
+      margin-top: 10px; padding-top: 10px; border-top: 1px solid #2a3656;
+      display: flex; justify-content: space-between; align-items: center; font-size: 13px;
+    }
+    .diff-row .k { color: #8a8aa3; }
+    .diff-row .v { font-weight: 700; }
+    .chart-card { background: #16213e; border-radius: 10px; padding: 16px; }
+    .chart-wrap { position: relative; height: 320px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 8px 6px; text-align: right; border-bottom: 1px solid #2a3656; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: #8a8aa3; font-weight: 600; background: #1e2a4a; position: sticky; top: 0; z-index: 1; }
+    th.group { border-left: 1px solid #2a3656; border-right: 1px solid #2a3656; text-align: center; }
+    .sub-actual { color: #b8b8d0; font-size: 11px; }
+    .sub-signal { color: #6b7299; font-size: 11px; font-style: italic; }
+    .empty { text-align: center; padding: 40px; color: #8a8aa3; font-size: 14px; }
+    .table-wrap { background: #16213e; border-radius: 10px; padding: 8px; max-height: 460px; overflow: auto; }
+    @media (max-width: 600px) {
+      h1 { font-size: 18px; }
+      .value { font-size: 18px; }
+      th, td { padding: 6px 4px; font-size: 11px; }
+      .chart-wrap { height: 240px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>AutobotEx 자동매매 대시보드</h1>
+  <div class="subtitle" id="lastUpdated">로딩 중...</div>
+
+  <section>
+    <h2>전체 요약</h2>
+    <div class="grid grid-4">
+      <div class="card"><div class="label">총 자산 (실제)</div><div class="value neutral" id="totalAsset">-</div></div>
+      <div class="card"><div class="label">오늘 수익률</div><div class="value" id="todayReturn">-</div></div>
+      <div class="card"><div class="label">누적 수익률</div><div class="value" id="cumReturn">-</div></div>
+      <div class="card"><div class="label">현재 모드</div><div class="value"><span class="badge" id="modeBadge">-</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>계좌별 현황</h2>
+    <div class="grid grid-3" id="accountCards"></div>
+  </section>
+
+  <section>
+    <h2>전략 비교 (실제 vs 시그널 누적 수익률)</h2>
+    <div class="chart-card"><div class="chart-wrap"><canvas id="strategyChart"></canvas></div></div>
+  </section>
+
+  <section>
+    <h2>계좌별 누적 수익률 (실제)</h2>
+    <div class="chart-card"><div class="chart-wrap"><canvas id="accountChart"></canvas></div></div>
+  </section>
+
+  <section>
+    <h2>일별 수익률 (실제 / 시그널)</h2>
+    <div class="table-wrap" id="tableWrap"><div class="empty">로딩 중...</div></div>
+  </section>
+
+<script>
+const fmt = {
+  won: v => '₩' + Math.round(v).toLocaleString('ko-KR'),
+  pct: v => (v >= 0 ? '+' : '') + v.toFixed(2) + '%',
+  cls: v => v > 0 ? 'pos' : (v < 0 ? 'neg' : 'neutral')
+};
+
+const SUB_LABEL = { hybrid: 'Hybrid', smartsplit: 'SmartSplit', safe: '안전자산' };
+
+const ASSET_FIELDS = [
+  ['ISA', 'hybrid'], ['ISA', 'smartsplit'],
+  ['Pension', 'hybrid'], ['Pension', 'smartsplit'],
+  ['IRP', 'hybrid'], ['IRP', 'safe']
+];
+
+const sumOf = (r, kind) =>
+  ASSET_FIELDS.reduce((s, [a, t]) => s + (r[`${a}_${t}_${kind}`] || 0), 0);
+const totalActual = r => sumOf(r, 'actual');
+const totalSignal = r => sumOf(r, 'signal');
+
+async function load() {
+  let data;
+  try {
+    const res = await fetch('data/daily.json?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    data = await res.json();
+  } catch (e) {
+    document.body.innerHTML =
+      '<h1>AutobotEx 자동매매 대시보드</h1>' +
+      '<div class="empty">data/daily.json을 불러올 수 없습니다.<br>' +
+      'HTTP 서버로 열어주세요 (file:// 프로토콜은 fetch 차단).<br>' +
+      '<small>오류: ' + e.message + '</small></div>';
+    return;
+  }
+
+  const records = data.daily_records || [];
+  const accs = data.accounts || {};
+  const initialTotal =
+    (accs.ISA?.initial || 0) +
+    (accs.Pension?.initial || 0) +
+    (accs.IRP?.initial || 0);
+
+  document.getElementById('lastUpdated').textContent =
+    '마지막 업데이트: ' + (data.last_updated || '-');
+
+  const mode = data.mode || '-';
+  const badge = document.getElementById('modeBadge');
+  badge.textContent = mode;
+  badge.className = 'badge ' + (mode === '공격' ? 'badge-attack' : 'badge-defense');
+
+  if (records.length === 0) {
+    document.getElementById('totalAsset').textContent = fmt.won(initialTotal);
+    document.getElementById('todayReturn').textContent = '데이터 수집 중...';
+    document.getElementById('cumReturn').textContent = '데이터 수집 중...';
+    renderAccountCards(accs, null);
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="empty">데이터 수집 중...</div>';
+    renderStrategyChart([], [], [], [], []);
+    renderAccountChart([], [], [], []);
+    return;
+  }
+
+  const last = records[records.length - 1];
+  const prev = records.length > 1 ? records[records.length - 2] : null;
+  const todayTotal = totalActual(last);
+  const prevTotal = prev ? totalActual(prev) : initialTotal;
+  const todayPct = ((todayTotal - prevTotal) / prevTotal) * 100;
+  const cumPct = ((todayTotal - initialTotal) / initialTotal) * 100;
+
+  document.getElementById('totalAsset').textContent = fmt.won(todayTotal);
+  const tEl = document.getElementById('todayReturn');
+  tEl.textContent = fmt.pct(todayPct);
+  tEl.className = 'value ' + fmt.cls(todayPct);
+  const cEl = document.getElementById('cumReturn');
+  cEl.textContent = fmt.pct(cumPct);
+  cEl.className = 'value ' + fmt.cls(cumPct);
+
+  renderAccountCards(accs, last);
+  renderTable(records);
+
+  const labels = records.map(r => r.date);
+
+  const hybridInit =
+    (accs.ISA?.initial || 0) * (accs.ISA?.hybrid_weight || 0) +
+    (accs.Pension?.initial || 0) * (accs.Pension?.hybrid_weight || 0) +
+    (accs.IRP?.initial || 0) * (accs.IRP?.hybrid_weight || 0);
+  const smartsplitInit =
+    (accs.ISA?.initial || 0) * (accs.ISA?.smartsplit_weight || 0) +
+    (accs.Pension?.initial || 0) * (accs.Pension?.smartsplit_weight || 0);
+
+  const hybridActualPct = records.map(r => {
+    const v = r.ISA_hybrid_actual + r.Pension_hybrid_actual + r.IRP_hybrid_actual;
+    return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
+  });
+  const hybridSignalPct = records.map(r => {
+    const v = r.ISA_hybrid_signal + r.Pension_hybrid_signal + r.IRP_hybrid_signal;
+    return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
+  });
+  const smartActualPct = records.map(r => {
+    const v = r.ISA_smartsplit_actual + r.Pension_smartsplit_actual;
+    return smartsplitInit ? ((v - smartsplitInit) / smartsplitInit) * 100 : 0;
+  });
+  const smartSignalPct = records.map(r => {
+    const v = r.ISA_smartsplit_signal + r.Pension_smartsplit_signal;
+    return smartsplitInit ? ((v - smartsplitInit) / smartsplitInit) * 100 : 0;
+  });
+  renderStrategyChart(labels, hybridActualPct, hybridSignalPct, smartActualPct, smartSignalPct);
+
+  const isaInit = accs.ISA?.initial || 0;
+  const pensionInit = accs.Pension?.initial || 0;
+  const irpInit = accs.IRP?.initial || 0;
+  const isaPct = records.map(r =>
+    isaInit ? (((r.ISA_hybrid_actual + r.ISA_smartsplit_actual) - isaInit) / isaInit) * 100 : 0);
+  const pensionPct = records.map(r =>
+    pensionInit ? (((r.Pension_hybrid_actual + r.Pension_smartsplit_actual) - pensionInit) / pensionInit) * 100 : 0);
+  const irpPct = records.map(r =>
+    irpInit ? (((r.IRP_hybrid_actual + r.IRP_safe_actual) - irpInit) / irpInit) * 100 : 0);
+  renderAccountChart(labels, isaPct, pensionPct, irpPct);
+}
+
+function renderAccountCards(accs, last) {
+  const wrap = document.getElementById('accountCards');
+  wrap.innerHTML = '';
+  const defs = [
+    { key: 'ISA',     label: 'ISA',  sub: ['hybrid', 'smartsplit'] },
+    { key: 'Pension', label: '연금', sub: ['hybrid', 'smartsplit'] },
+    { key: 'IRP',     label: 'IRP',  sub: ['hybrid', 'safe']       }
+  ];
+  defs.forEach(d => {
+    const a = accs[d.key] || {};
+    let body = `<div class="label">${d.label}</div>`;
+    if (last) {
+      let totalAct = 0, totalSig = 0;
+      d.sub.forEach(s => {
+        totalAct += last[`${d.key}_${s}_actual`] || 0;
+        totalSig += last[`${d.key}_${s}_signal`] || 0;
+      });
+      body += `<div class="value neutral">${fmt.won(totalAct)}</div>`;
+      d.sub.forEach(s => {
+        const v = last[`${d.key}_${s}_actual`] || 0;
+        const w = a[`${s}_weight`] || 0;
+        const init = (a.initial || 0) * w;
+        const pct = init > 0 ? ((v - init) / init) * 100 : 0;
+        body += `<div class="row"><span class="k">${SUB_LABEL[s]}</span>` +
+                `<span class="v ${fmt.cls(pct)}">${fmt.pct(pct)} ` +
+                `<span style="color:#8a8aa3;font-weight:400">(${fmt.won(v)})</span></span></div>`;
+      });
+      if (d.key === 'IRP' && totalSig > 0) {
+        const diffPct = ((totalAct - totalSig) / totalSig) * 100;
+        let tag;
+        if (Math.abs(diffPct) < 0.005) tag = '동일';
+        else if (diffPct > 0) tag = '초과수익';
+        else tag = '미달';
+        body += `<div class="diff-row"><span class="k">실제 vs 시그널</span>` +
+                `<span class="v ${fmt.cls(diffPct)}">${fmt.pct(diffPct)} ${tag}</span></div>`;
+      }
+    } else {
+      body += `<div class="value neutral">${fmt.won(a.initial || 0)}</div>` +
+              `<div class="row"><span class="k">상태</span><span class="v">데이터 수집 중</span></div>`;
+    }
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = body;
+    wrap.appendChild(card);
+  });
+}
+
+function renderTable(records) {
+  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+  let html = `<table>
+    <thead>
+      <tr>
+        <th rowspan="2">날짜</th>
+        <th class="group" colspan="2">ISA Hybrid</th>
+        <th class="group" colspan="2">ISA SmartSplit</th>
+        <th class="group" colspan="2">연금 Hybrid</th>
+        <th class="group" colspan="2">연금 SmartSplit</th>
+        <th class="group" colspan="2">IRP Hybrid</th>
+        <th rowspan="2">합계 (실제)</th>
+      </tr>
+      <tr>
+        <th class="sub-actual">실제</th><th class="sub-signal">시그널</th>
+        <th class="sub-actual">실제</th><th class="sub-signal">시그널</th>
+        <th class="sub-actual">실제</th><th class="sub-signal">시그널</th>
+        <th class="sub-actual">실제</th><th class="sub-signal">시그널</th>
+        <th class="sub-actual">실제</th><th class="sub-signal">시그널</th>
+      </tr>
+    </thead><tbody>`;
+  sorted.forEach(r => {
+    html += `<tr>
+      <td>${r.date}</td>
+      <td>${fmt.won(r.ISA_hybrid_actual)}</td>
+      <td class="sub-signal">${fmt.won(r.ISA_hybrid_signal)}</td>
+      <td>${fmt.won(r.ISA_smartsplit_actual)}</td>
+      <td class="sub-signal">${fmt.won(r.ISA_smartsplit_signal)}</td>
+      <td>${fmt.won(r.Pension_hybrid_actual)}</td>
+      <td class="sub-signal">${fmt.won(r.Pension_hybrid_signal)}</td>
+      <td>${fmt.won(r.Pension_smartsplit_actual)}</td>
+      <td class="sub-signal">${fmt.won(r.Pension_smartsplit_signal)}</td>
+      <td>${fmt.won(r.IRP_hybrid_actual)}</td>
+      <td class="sub-signal">${fmt.won(r.IRP_hybrid_signal)}</td>
+      <td><strong>${fmt.won(totalActual(r))}</strong></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('tableWrap').innerHTML = html;
+}
+
+const chartOpts = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { labels: { color: '#e8e8f0' } },
+    tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + '%' } }
+  },
+  scales: {
+    x: { ticks: { color: '#8a8aa3' }, grid: { color: '#2a3656' } },
+    y: { ticks: { color: '#8a8aa3', callback: v => v.toFixed(1) + '%' }, grid: { color: '#2a3656' } }
+  }
+};
+
+let strategyChart = null, accountChart = null;
+
+function renderStrategyChart(labels, hybridActual, hybridSignal, smartActual, smartSignal) {
+  const ctx = document.getElementById('strategyChart').getContext('2d');
+  if (strategyChart) strategyChart.destroy();
+  strategyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Hybrid 실제',     data: hybridActual,
+          borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.10)',
+          tension: 0.3, fill: false, borderWidth: 2.5 },
+        { label: 'Hybrid 시그널',   data: hybridSignal,
+          borderColor: '#4ade80', borderDash: [6, 4],
+          tension: 0.3, fill: false, borderWidth: 1.5, pointRadius: 2 },
+        { label: 'SmartSplit 실제', data: smartActual,
+          borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.10)',
+          tension: 0.3, fill: false, borderWidth: 2.5 },
+        { label: 'SmartSplit 시그널', data: smartSignal,
+          borderColor: '#60a5fa', borderDash: [6, 4],
+          tension: 0.3, fill: false, borderWidth: 1.5, pointRadius: 2 }
+      ]
+    },
+    options: chartOpts
+  });
+}
+
+function renderAccountChart(labels, isa, pension, irp) {
+  const ctx = document.getElementById('accountChart').getContext('2d');
+  if (accountChart) accountChart.destroy();
+  accountChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'ISA',  data: isa,     borderColor: '#fbbf24', tension: 0.3, borderWidth: 2 },
+        { label: '연금', data: pension, borderColor: '#a78bfa', tension: 0.3, borderWidth: 2 },
+        { label: 'IRP',  data: irp,     borderColor: '#fb923c', tension: 0.3, borderWidth: 2 }
+      ]
+    },
+    options: chartOpts
+  });
+}
+
+load();
+</script>
+</body>
+</html>

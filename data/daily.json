@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-26",
+  "last_updated": "2026-04-27",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -31,6 +31,240 @@
       "IRP_safe_actual": 11174075,
       "IRP_safe_signal": 11174075,
       "trades": []
+    },
+    {
+      "date": "2026-04-27",
+      "mode": "공격",
+      "ISA_hybrid": 45439546,
+      "ISA_smartsplit": 37177810,
+      "Pension_hybrid": 36968653,
+      "Pension_smartsplit": 12322884,
+      "IRP_hybrid_actual": 26083508,
+      "IRP_hybrid_signal": 26083508,
+      "IRP_safe_actual": 11178646,
+      "IRP_safe_signal": 11178646,
+      "trades": [
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "305080",
+          "stock_name": "TIGER 미국채10년선물",
+          "qty": 26,
+          "price": 13370,
+          "amount": 347620
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "102110",
+          "stock_name": "TIGER 200",
+          "qty": 96,
+          "price": 99555,
+          "amount": 9557280
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "153130",
+          "stock_name": "KODEX 단기채권",
+          "qty": 31,
+          "price": 113295,
+          "amount": 3512145
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "148070",
+          "stock_name": "KIWOOM 국고채10년",
+          "qty": 50,
+          "price": 107140,
+          "amount": 5357000
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "133690",
+          "stock_name": "TIGER 미국나스닥100",
+          "qty": 62,
+          "price": 178450,
+          "amount": 11063900
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "280930",
+          "stock_name": "KODEX 미국러셀2000(H)",
+          "qty": 707,
+          "price": 15864,
+          "amount": 11215848
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "132030",
+          "stock_name": "KODEX 골드선물(H)",
+          "qty": 423,
+          "price": 26535,
+          "amount": 11224305
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "133690",
+          "stock_name": "TIGER 미국나스닥100",
+          "qty": 62,
+          "price": 178429,
+          "amount": 11062598
+        },
+        {
+          "account": "ISA",
+          "strategy": "SmartSplit",
+          "action": "매수",
+          "stock_code": "091160",
+          "stock_name": "KODEX 반도체",
+          "qty": 9,
+          "price": 120810,
+          "amount": 1087290
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "280930",
+          "stock_name": "KODEX 미국러셀2000(H)",
+          "qty": 3,
+          "price": 15900,
+          "amount": 47700
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "280930",
+          "stock_name": "KODEX 미국러셀2000(H)",
+          "qty": 3,
+          "price": 15920,
+          "amount": 47760
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "261240",
+          "stock_name": "KODEX 미국달러선물",
+          "qty": 12,
+          "price": 15095,
+          "amount": 181140
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "305080",
+          "stock_name": "TIGER 미국채10년선물",
+          "qty": 14,
+          "price": 13370,
+          "amount": 187180
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "261220",
+          "stock_name": "KODEX WTI원유선물(H)",
+          "qty": 7,
+          "price": 25105,
+          "amount": 175735
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "153130",
+          "stock_name": "KODEX 단기채권",
+          "qty": 17,
+          "price": 113295,
+          "amount": 1926015
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "148070",
+          "stock_name": "KIWOOM 국고채10년",
+          "qty": 2,
+          "price": 107150,
+          "amount": 214300
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "102110",
+          "stock_name": "TIGER 200",
+          "qty": 30,
+          "price": 99600,
+          "amount": 2988000
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "132030",
+          "stock_name": "KODEX 골드선물(H)",
+          "qty": 343,
+          "price": 26549,
+          "amount": 9106307
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "132030",
+          "stock_name": "KODEX 골드선물(H)",
+          "qty": 343,
+          "price": 26535,
+          "amount": 9101505
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "133690",
+          "stock_name": "TIGER 미국나스닥100",
+          "qty": 51,
+          "price": 178450,
+          "amount": 9100950
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "133690",
+          "stock_name": "TIGER 미국나스닥100",
+          "qty": 51,
+          "price": 178430,
+          "amount": 9099930
+        },
+        {
+          "account": "Pension",
+          "strategy": "SmartSplit",
+          "action": "매수",
+          "stock_code": "091160",
+          "stock_name": "KODEX 반도체",
+          "qty": 8,
+          "price": 120900,
+          "amount": 967200
+        }
+      ]
     }
   ]
 }

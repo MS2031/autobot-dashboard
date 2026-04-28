@@ -225,7 +225,7 @@ def upsert_record(daily, new_record):
     daily["daily_records"] = [r for r in daily["daily_records"] if r.get("date") != today]
     daily["daily_records"].append(new_record)
     daily["daily_records"].sort(key=lambda r: r.get("date", ""))
-    daily["last_updated"] = today
+    daily["last_updated"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def git_run(args):

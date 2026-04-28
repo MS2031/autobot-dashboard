@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-27",
+  "last_updated": "2026-04-28",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -263,6 +263,150 @@
           "qty": 8,
           "price": 120900,
           "amount": 967200
+        }
+      ]
+    },
+    {
+      "date": "2026-04-28",
+      "mode": "공격",
+      "ISA_hybrid": 45573768,
+      "ISA_smartsplit": 37287629,
+      "Pension_hybrid": 37101979,
+      "Pension_smartsplit": 12367326,
+      "IRP_hybrid_actual": 26278726,
+      "IRP_hybrid_signal": 26278726,
+      "IRP_safe_actual": 11262311,
+      "IRP_safe_signal": 11262311,
+      "trades": [
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "421320",
+          "stock_name": "PLUS 우주항공&UAM",
+          "qty": 234,
+          "price": 48019,
+          "amount": 11236446
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "069500",
+          "stock_name": "KODEX 200",
+          "qty": 111,
+          "price": 101069,
+          "amount": 11218659
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "381180",
+          "stock_name": "TIGER 미국필라델피아반도체나스닥",
+          "qty": 277,
+          "price": 40600,
+          "amount": 11246200
+        },
+        {
+          "account": "ISA",
+          "strategy": "SmartSplit",
+          "action": "매수",
+          "stock_code": "091160",
+          "stock_name": "KODEX 반도체",
+          "qty": 81,
+          "price": 125194,
+          "amount": 10140714
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "133690",
+          "stock_name": "TIGER 미국나스닥100",
+          "qty": 124,
+          "price": 178806,
+          "amount": 22171944
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "280930",
+          "stock_name": "KODEX 미국러셀2000(H)",
+          "qty": 707,
+          "price": 15975,
+          "amount": 11294325
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "132030",
+          "stock_name": "KODEX 골드선물(H)",
+          "qty": 622,
+          "price": 26660,
+          "amount": 16582520
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "421320",
+          "stock_name": "PLUS 우주항공&UAM",
+          "qty": 190,
+          "price": 48039,
+          "amount": 9127410
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "069500",
+          "stock_name": "KODEX 200",
+          "qty": 90,
+          "price": 101035,
+          "amount": 9093150
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "381180",
+          "stock_name": "TIGER 미국필라델피아반도체나스닥",
+          "qty": 225,
+          "price": 40590,
+          "amount": 9132750
+        },
+        {
+          "account": "Pension",
+          "strategy": "SmartSplit",
+          "action": "매수",
+          "stock_code": "091160",
+          "stock_name": "KODEX 반도체",
+          "qty": 65,
+          "price": 125150,
+          "amount": 8134750
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "133690",
+          "stock_name": "TIGER 미국나스닥100",
+          "qty": 118,
+          "price": 178813,
+          "amount": 21099934
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "132030",
+          "stock_name": "KODEX 골드선물(H)",
+          "qty": 697,
+          "price": 26660,
+          "amount": 18582020
         }
       ]
     }

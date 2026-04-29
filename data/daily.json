@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-28 15:40:54",
+  "last_updated": "2026-04-29 10:00:47",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -407,6 +407,160 @@
           "qty": 697,
           "price": 26660,
           "amount": 18582020
+        }
+      ]
+    },
+    {
+      "date": "2026-04-29",
+      "mode": "공격",
+      "ISA_hybrid": 44992304,
+      "ISA_smartsplit": 36811886,
+      "Pension_hybrid": 36471100,
+      "Pension_smartsplit": 12157033,
+      "IRP_hybrid_actual": 25766950,
+      "IRP_hybrid_signal": 25766950,
+      "IRP_safe_actual": 11042979,
+      "IRP_safe_signal": 11042979,
+      "trades": [
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "463250",
+          "stock_name": "TIGER K방산&우주",
+          "qty": 217,
+          "price": 51310,
+          "amount": 11134270
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "381180",
+          "stock_name": "TIGER 미국필라델피아반도체나스닥",
+          "qty": 7,
+          "price": 39145,
+          "amount": 274015
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "487240",
+          "stock_name": "KODEX AI전력핵심설비",
+          "qty": 220,
+          "price": 50460,
+          "amount": 11101200
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "0091P0",
+          "stock_name": "TIGER 코리아원자력",
+          "qty": 19,
+          "price": 27150,
+          "amount": 515850
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "421320",
+          "stock_name": "PLUS 우주항공&UAM",
+          "qty": 234,
+          "price": 47447,
+          "amount": 11102598
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "069500",
+          "stock_name": "KODEX 200",
+          "qty": 111,
+          "price": 100465,
+          "amount": 11151615
+        },
+        {
+          "account": "ISA",
+          "strategy": "SmartSplit",
+          "action": "매도",
+          "stock_code": "091160",
+          "stock_name": "KODEX 반도체",
+          "qty": 90,
+          "price": 124289,
+          "amount": 11186010
+        },
+        {
+          "account": "Pension",
+          "strategy": "SmartSplit",
+          "action": "매수",
+          "stock_code": "463250",
+          "stock_name": "TIGER K방산&우주",
+          "qty": 176,
+          "price": 51351,
+          "amount": 9037776
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "381180",
+          "stock_name": "TIGER 미국필라델피아반도체나스닥",
+          "qty": 6,
+          "price": 39145,
+          "amount": 234870
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "487240",
+          "stock_name": "KODEX AI전력핵심설비",
+          "qty": 179,
+          "price": 50460,
+          "amount": 9032340
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "466920",
+          "stock_name": "SOL 조선TOP3플러스",
+          "qty": 5,
+          "price": 42510,
+          "amount": 212550
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "421320",
+          "stock_name": "PLUS 우주항공&UAM",
+          "qty": 190,
+          "price": 47459,
+          "amount": 9017210
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "069500",
+          "stock_name": "KODEX 200",
+          "qty": 90,
+          "price": 100487,
+          "amount": 9043830
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "0091P0",
+          "stock_name": "TIGER 코리아원자력",
+          "qty": 8,
+          "price": 27145,
+          "amount": 217160
         }
       ]
     }

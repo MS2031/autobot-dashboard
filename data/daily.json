@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-29 15:40:52",
+  "last_updated": "2026-04-30 10:00:45",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -561,6 +561,50 @@
           "qty": 8,
           "price": 27145,
           "amount": 217160
+        }
+      ]
+    },
+    {
+      "date": "2026-04-30",
+      "mode": "공격",
+      "ISA_hybrid": 45493281,
+      "ISA_smartsplit": 37221775,
+      "Pension_hybrid": 37005320,
+      "Pension_smartsplit": 12335107,
+      "IRP_hybrid_actual": 26268902,
+      "IRP_hybrid_signal": 26268902,
+      "IRP_safe_actual": 11258101,
+      "IRP_safe_signal": 11258101,
+      "trades": [
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "000660",
+          "stock_name": "SK하이닉스",
+          "qty": 1,
+          "price": 1322000,
+          "amount": 1322000
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "005930",
+          "stock_name": "삼성전자",
+          "qty": 2,
+          "price": 230000,
+          "amount": 460000
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "381170",
+          "stock_name": "TIGER 미국테크TOP10 INDXX",
+          "qty": 6,
+          "price": 32910,
+          "amount": 197460
         }
       ]
     }

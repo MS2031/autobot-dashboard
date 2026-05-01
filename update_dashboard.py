@@ -508,7 +508,9 @@ def main():
         f"trades {len(all_trades)}건, fetch_status={fetch_status})"
     )
 
-    pushed = git_push(today)
+    # git push는 모든 추가 필드 (bot_modes/cagr/canary/strategy_pnl/realtime_estimate) 처리
+    # 후 마지막 save_daily 이후로 이동. 여기서는 일단 placeholder만 두고 마지막에 호출.
+    pushed = False
 
     isa_total = new_record["ISA_hybrid"]     + new_record["ISA_smartsplit"]
     pen_total = new_record["Pension_hybrid"] + new_record["Pension_smartsplit"]
@@ -769,6 +771,9 @@ def main():
             save_daily(daily)
         except Exception as _est_err:
             print(f"  [추정] daily.json 기록 실패: {_est_err}")
+
+    # 모든 mutation 완료 후 git push (cagr/canary/strategy_pnl 모두 포함)
+    pushed = git_push(today)
 
     # 메시지 조립
     parts = [

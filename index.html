@@ -139,6 +139,7 @@
       <div class="card"><div class="label">일별 수익금</div><div class="value" id="dailyAmount">-</div></div>
       <div class="card"><div class="label">누적 수익률</div><div class="value" id="cumPct">-</div></div>
       <div class="card"><div class="label">누적 수익금</div><div class="value" id="cumAmount">-</div></div>
+      <div class="card"><div class="label">연 환산 (CAGR)</div><div class="value" id="cagrTotal">-</div></div>
       <div class="card"><div class="label">현재 모드</div><div class="value"><span class="badge" id="modeBadge">-</span></div></div>
     </div>
   </section>
@@ -172,7 +173,7 @@
       </div>
       <div class="chart-card">
         <div class="chart-card-header">
-          <div class="title">IRP 누적 수익률</div>
+          <div class="title">IRP 누적 수익률 <span style="font-size:13px; color:#a78bfa; font-weight:500;">📌 월간 리밸런싱 (다음: 2026-06-01)</span></div>
           <div class="stats" id="irpStats"></div>
         </div>
         <div class="chart-wrap-sm"><canvas id="irpChart"></canvas></div>
@@ -230,6 +231,17 @@
     <div class="chart-card"><div class="chart-wrap"><canvas id="strategyChart"></canvas></div></div>
   </section>
 
+  <section>
+    <h2>BAA 카나리아 추세 (SPY/VWO/VEA/BND 13612W)</h2>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="title">카나리아 4종 13612W <span style="font-size:13px; color:#a78bfa; font-weight:500;">📌 다음 IRP 리밸런싱: 2026-06-01</span></div>
+        <div class="stats" id="canaryStats"></div>
+      </div>
+      <div class="chart-wrap"><canvas id="canaryChart"></canvas></div>
+    </div>
+  </section>
+
 <script>
 const fmtWon       = v => '₩' + Math.round(v).toLocaleString('ko-KR');
 const fmtSignedWon = v => v === 0 ? '₩0' : (v > 0 ? '+' : '-') + '₩' + Math.abs(Math.round(v)).toLocaleString('ko-KR');
@@ -244,20 +256,19 @@ const totalActual = r =>
 const irpActual = r => r.IRP_hybrid_actual + r.IRP_safe_actual;
 const irpSignal = r => r.IRP_hybrid_signal + r.IRP_safe_signal;
 
+// P3: IRP 시그널 칼럼 제거 — 월간 리밸런싱 계좌이므로 일별 시그널 무의미
 const colsOf = r => [
   r.ISA_hybrid,
   r.ISA_smartsplit,
   r.Pension_hybrid,
   r.Pension_smartsplit,
-  irpActual(r),
-  irpSignal(r)
+  irpActual(r)
 ];
 const initialColsOf = accs => [
   (accs.ISA?.initial || 0) * (accs.ISA?.hybrid_weight || 0),
   (accs.ISA?.initial || 0) * (accs.ISA?.smartsplit_weight || 0),
   (accs.Pension?.initial || 0) * (accs.Pension?.hybrid_weight || 0),
   (accs.Pension?.initial || 0) * (accs.Pension?.smartsplit_weight || 0),
-  (accs.IRP?.initial || 0),
   (accs.IRP?.initial || 0)
 ];
 
@@ -356,6 +367,12 @@ async function load() {
   setSummary('cumPct',      fmtPct(cumPct),           cumPct);
   setSummary('cumAmount',   fmtSignedWon(cumAmount),  cumAmount);
 
+  // P2: CAGR 카드 — record.cagr.Portfolio 사용 (없으면 -)
+  const cagrPortfolio = (last.cagr && typeof last.cagr.Portfolio === 'number') ? last.cagr.Portfolio : null;
+  setSummary('cagrTotal',
+    cagrPortfolio == null ? '-' : (cagrPortfolio >= 0 ? '+' : '') + cagrPortfolio.toFixed(2) + '%',
+    cagrPortfolio || 0);
+
   renderAccountCards(accs, last);
   renderTrades(last.trades || []);
   renderPeriodSummary(records);
@@ -387,6 +404,59 @@ async function load() {
   renderStrategyChart(labels, hybridActualPct, smartPct, annotations);
 
   renderAccountCharts(records, accs, initialTotal, annotations);
+  renderCanaryChart(records, annotations);
+}
+
+// P5: 카나리아 4종 13612W 추세 차트 + 현재값 카드
+let canaryChart = null;
+function renderCanaryChart(records, annotations) {
+  const labels = records.map(r => r.date);
+  const tickers = ['SPY', 'VWO', 'VEA', 'BND'];
+  const colors = { SPY: '#4ade80', VWO: '#60a5fa', VEA: '#fbbf24', BND: '#f87171' };
+  const datasets = tickers.map(tk => ({
+    label: tk,
+    data: records.map(r => (r.canary && typeof r.canary[tk] === 'number') ? r.canary[tk] : null),
+    borderColor: colors[tk],
+    backgroundColor: 'transparent',
+    tension: 0.3,
+    fill: false,
+    borderWidth: tk === 'BND' ? 3 : 2,
+    spanGaps: true,
+  }));
+
+  // 현재값 카드 — 마지막 record의 canary
+  const last = records.length ? records[records.length - 1] : null;
+  const cur = (last && last.canary) ? last.canary : {};
+  const parts = tickers.map(tk => {
+    const v = (typeof cur[tk] === 'number') ? cur[tk] : null;
+    if (v == null) return `${tk}: -`;
+    let badge = '';
+    if (Math.abs(v) <= 0.1) badge = ' ⚠️ 임계';
+    return `${tk} <span class="${colorClass(v)}">${(v >= 0 ? '+' : '') + v.toFixed(3)}</span>${badge}`;
+  });
+  const statsEl = document.getElementById('canaryStats');
+  if (statsEl) statsEl.innerHTML = parts.join(' | ');
+
+  // y=0 임계선 annotation 추가
+  const ann = Object.assign({}, annotations || {});
+  ann.canaryZero = {
+    type: 'line', yMin: 0, yMax: 0,
+    borderColor: '#f87171', borderDash: [6, 3], borderWidth: 2,
+    label: { display: true, content: 'BAA 임계 (음수=방어)', position: 'end',
+             color: '#f87171', backgroundColor: 'rgba(22, 33, 62, 0.85)',
+             padding: 4, font: { size: 11, weight: 'bold' } }
+  };
+
+  const ctx = document.getElementById('canaryChart').getContext('2d');
+  if (canaryChart) canaryChart.destroy();
+  const opts = makeOpts(true, ann);
+  // y축 callback을 .toFixed(2)로 (퍼센트 아님, 13612W 점수)
+  opts.scales = {
+    x: { ticks: { color: '#8a8aa3', font: { size: 12 } }, grid: { color: '#2a3656' } },
+    y: { ticks: { color: '#8a8aa3', font: { size: 12 }, callback: v => v.toFixed(2) }, grid: { color: '#2a3656' } }
+  };
+  opts.plugins.tooltip = { callbacks: { label: c => c.dataset.label + ': ' + (c.parsed.y == null ? '-' : c.parsed.y.toFixed(3)) } };
+  canaryChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: opts });
 }
 
 function setSummary(id, text, raw) {
@@ -432,18 +502,16 @@ function renderAccountCards(accs, last) {
                  `<span class="v ${colorClass(accountPct)}">${fmtPct(accountPct)}</span></div>`;
       summary += `<div class="row"><span class="k">계좌 수익금</span>` +
                  `<span class="v ${colorClass(accountProfit)}">${fmtSignedWon(accountProfit)}</span></div>`;
+      // P2: 계좌별 CAGR 라인 (단순 % 표시, 신뢰도 라벨 없음)
+      const accCagr = (last.cagr && typeof last.cagr[c.key] === 'number') ? last.cagr[c.key] : null;
+      if (accCagr != null) {
+        summary += `<div class="row"><span class="k">CAGR</span>` +
+                   `<span class="v ${colorClass(accCagr)}">${(accCagr >= 0 ? '+' : '') + accCagr.toFixed(2)}%</span></div>`;
+      }
+      // P3: IRP 카드에서 "실제 vs 시그널" 라인 제거. 월간 잠금 배지로 대체.
       if (c.key === 'IRP') {
-        const sig = irpSignal(last);
-        const act = irpActual(last);
-        if (sig > 0) {
-          const diffPct = ((act - sig) / sig) * 100;
-          let tag;
-          if (Math.abs(diffPct) < 0.005) tag = '동일';
-          else if (diffPct > 0) tag = '초과수익';
-          else tag = '미달';
-          summary += `<div class="row"><span class="k">실제 vs 시그널</span>` +
-                     `<span class="v ${colorClass(diffPct)}">${fmtPct(diffPct)} ${tag}</span></div>`;
-        }
+        summary += `<div class="row"><span class="k">전략</span>` +
+                   `<span class="v" style="font-size:13px; color:#a78bfa;">📌 월간 리밸런싱 (다음: 2026-06-01)</span></div>`;
       }
       body += `<div class="account-summary">${summary}</div>`;
     } else {
@@ -558,7 +626,7 @@ function renderProfitTable(wrapId, records, accs, mode) {
       return { date: r.date, cols: profitCols, total: profitTotal };
     } else {
       if (i === 0) {
-        return { date: r.date, cols: [0,0,0,0,0,0], total: 0 };
+        return { date: r.date, cols: [0,0,0,0,0], total: 0 };
       }
       const prev = records[i - 1];
       const prv = colsOf(prev);
@@ -570,6 +638,7 @@ function renderProfitTable(wrapId, records, accs, mode) {
 
   rows.sort((a, b) => b.date.localeCompare(a.date));
 
+  // P3: IRP 시그널 칼럼 제거 — 월간 리밸런싱 계좌
   let html = `<table>
     <thead><tr>
       <th>날짜</th>
@@ -577,15 +646,13 @@ function renderProfitTable(wrapId, records, accs, mode) {
       <th>ISA Smart</th>
       <th>연금 Hybrid</th>
       <th>연금 Smart</th>
-      <th>IRP 실제</th>
-      <th class="col-irp-signal">IRP 시그널</th>
+      <th>IRP</th>
       <th>합계</th>
     </tr></thead><tbody>`;
   rows.forEach(row => {
     html += `<tr><td>${row.date}</td>`;
-    row.cols.forEach((v, i) => {
-      const extraClass = (i === 5) ? ' col-irp-signal' : '';
-      html += `<td class="${colorClass(v)}${extraClass}">${fmtSignedWon(v)}</td>`;
+    row.cols.forEach(v => {
+      html += `<td class="${colorClass(v)}">${fmtSignedWon(v)}</td>`;
     });
     html += `<td class="${colorClass(row.total)}"><strong>${fmtSignedWon(row.total)}</strong></td>`;
     html += `</tr>`;
@@ -683,10 +750,7 @@ function renderAccountCharts(records, accs, initialTotal, annotations) {
     });
     drawAccountChart('isaChart',     labels, [{ label: 'ISA',  data: [], borderColor: '#fbbf24' }], false, ann);
     drawAccountChart('pensionChart', labels, [{ label: '연금', data: [], borderColor: '#a78bfa' }], false, ann);
-    drawAccountChart('irpChart',     labels, [
-      { label: 'IRP 실제',   data: [], borderColor: '#fb923c' },
-      { label: 'IRP 시그널', data: [], borderColor: '#fb923c', borderDash: [6,4] }
-    ], true, ann);
+    drawAccountChart('irpChart',     labels, [{ label: 'IRP',  data: [], borderColor: '#fb923c' }], false, ann);
     drawAccountChart('totalChart',   labels, [{ label: '전체', data: [], borderColor: '#e8e8f0' }], false, ann);
     return;
   }
@@ -721,28 +785,20 @@ function renderAccountCharts(records, accs, initialTotal, annotations) {
       tension: 0.3, fill: false, borderWidth: 2.5 }
   ], false, ann);
 
+  // P3: IRP 차트 단순화 — 시그널 라인 제거, 단일 실제 라인만 표시 (월간 리밸런싱 계좌)
   const irpActSeries = records.map(r =>
     irpInit ? ((irpActual(r) - irpInit) / irpInit) * 100 : 0);
-  const irpSigSeries = records.map(r =>
-    irpInit ? ((irpSignal(r) - irpInit) / irpInit) * 100 : 0);
   const irpActProfit = irpActual(last) - irpInit;
   const irpActPct = irpInit ? (irpActProfit / irpInit) * 100 : 0;
-  const irpSigProfit = irpSignal(last) - irpInit;
-  const irpSigPct = irpInit ? (irpSigProfit / irpInit) * 100 : 0;
-  const excessPct = irpActPct - irpSigPct;
   document.getElementById('irpStats').innerHTML = buildStats([
-    { kind: 'pair', label: '실제',     amount: irpActProfit, pct: irpActPct },
-    { kind: 'pair', label: '시그널',   amount: irpSigProfit, pct: irpSigPct },
-    { kind: 'pct',  label: '초과수익', value: excessPct }
+    { kind: 'amount', label: '누적 수익금', value: irpActProfit },
+    { kind: 'pct',    label: '누적 수익률', value: irpActPct }
   ]);
   drawAccountChart('irpChart', labels, [
-    { label: 'IRP 실제',   data: irpActSeries,
+    { label: 'IRP', data: irpActSeries,
       borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.10)',
-      tension: 0.3, fill: false, borderWidth: 2.5 },
-    { label: 'IRP 시그널', data: irpSigSeries,
-      borderColor: '#fb923c', borderDash: [6, 4],
-      tension: 0.3, fill: false, borderWidth: 1.5, pointRadius: 2 }
-  ], true, ann);
+      tension: 0.3, fill: false, borderWidth: 2.5 }
+  ], false, ann);
 
   const totalSeries = records.map(r =>
     initialTotal ? ((totalActual(r) - initialTotal) / initialTotal) * 100 : 0);

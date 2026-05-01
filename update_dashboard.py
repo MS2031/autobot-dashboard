@@ -573,25 +573,22 @@ def main():
         return (amt / base * 100.0) if base else 0.0
 
     today_dt = datetime.date.today()
-    p_days = days_in_operation("Portfolio", today_dt)
-    p_start = TRADING_START_DATE["Portfolio"].isoformat()
     p_info = annualized_return("Portfolio", total_actual, today_dt, always_show=True)
     isa_info = annualized_return("ISA", isa_total, today_dt, always_show=True)
     pen_info = annualized_return("Pension", pen_total, today_dt, always_show=True)
     irp_info = annualized_return("IRP", irp_total, today_dt, always_show=True)
 
     def _fmt_cagr(info):
+        # 신뢰도 라벨 제거 — 단순 % 표시 (P6)
         sign = "+" if info["cagr_pct"] >= 0 else ""
-        return f"{sign}{info['cagr_pct']:.2f}% {info['reliability']}"
+        return f"{sign}{info['cagr_pct']:.2f}%"
 
     main_block = [
         "[누적 손익 (KIS 기준 — 메인)]",
-        f"  운용 시작: {p_start} (포트폴리오 {p_days}일째)",
-        f"  ISA  ({isa_info['days']}일): {fmt_won(isa_total)} / 누적 {fmt_signed_won(isa_pnl)} ({_pct(isa_pnl, cap['ISA']):+.2f}%) / CAGR {_fmt_cagr(isa_info)}",
-        f"  연금 ({pen_info['days']}일): {fmt_won(pen_total)} / 누적 {fmt_signed_won(pen_pnl)} ({_pct(pen_pnl, cap['Pension']):+.2f}%) / CAGR {_fmt_cagr(pen_info)}",
-        f"  IRP  ({irp_info['days']}일): {fmt_won(irp_total)} / 누적 {fmt_signed_won(irp_pnl)} ({_pct(irp_pnl, cap['IRP']):+.2f}%) / CAGR {_fmt_cagr(irp_info)}",
+        f"  ISA: {fmt_won(isa_total)} / 누적 {fmt_signed_won(isa_pnl)} ({_pct(isa_pnl, cap['ISA']):+.2f}%) / CAGR {_fmt_cagr(isa_info)}",
+        f"  연금: {fmt_won(pen_total)} / 누적 {fmt_signed_won(pen_pnl)} ({_pct(pen_pnl, cap['Pension']):+.2f}%) / CAGR {_fmt_cagr(pen_info)}",
+        f"  IRP: {fmt_won(irp_total)} / 누적 {fmt_signed_won(irp_pnl)} ({_pct(irp_pnl, cap['IRP']):+.2f}%) / CAGR {_fmt_cagr(irp_info)}",
         f"  합계: {fmt_won(total_actual)} / 누적 {fmt_signed_won(total_pnl)} ({_pct(total_pnl, cap['Total']):+.2f}%) / CAGR {_fmt_cagr(p_info)}",
-        "  ※ CAGR 신뢰도: <30일⚠️매우낮음 / <90일⚠️낮음 / <365일◯보통 / ≥365일✅신뢰",
     ]
 
     # ─── D+2 미결제 결제 예정 ───
@@ -622,6 +619,72 @@ def main():
             ),
             f"  KIS와 차이 {fmt_signed_won(-kis_diff)} (메트릭 차이 — D+2 미결제 + α 보정)",
         ]
+
+    # ─── P1: accounts.*.initial 자동 동기화 (매 실행마다 INITIAL_CAPITAL과 정합) ───
+    daily.setdefault("accounts", {}).setdefault("ISA", {})["initial"] = INITIAL_CAPITAL["ISA"]
+    daily["accounts"].setdefault("Pension", {})["initial"] = INITIAL_CAPITAL["Pension"]
+    daily["accounts"].setdefault("IRP", {})["initial"] = INITIAL_CAPITAL["IRP"]
+
+    # ─── P4: mode 자동 동기화 (3계좌 hybrid state 종합) ───
+    state_paths = {
+        "ISA": r"C:\AutobotEx\ISA\hybrid_isa_state.json",
+        "Pension": r"C:\AutobotEx\Pension\hybrid_pension_state.json",
+        "IRP": r"C:\AutobotEx\IRP\hybrid_irp_state.json",
+    }
+    bot_modes = {}
+    for acc, path in state_paths.items():
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                bot_modes[acc] = json.load(f).get("last_signal", "")
+        except Exception:
+            bot_modes[acc] = "?"
+    daily_mode = "방어" if "DEFENSE" in bot_modes.values() else "공격"
+    daily["mode"] = daily_mode
+    new_record["mode"] = daily_mode
+    new_record["bot_modes"] = bot_modes
+    print(f"  [P4 mode 동기화] bot_modes={bot_modes} → daily_mode={daily_mode}")
+
+    # ─── P2: CAGR 저장 ───
+    new_record["cagr"] = {
+        "Portfolio": round(p_info["cagr_pct"], 2),
+        "ISA": round(isa_info["cagr_pct"], 2),
+        "Pension": round(pen_info["cagr_pct"], 2),
+        "IRP": round(irp_info["cagr_pct"], 2),
+    }
+
+    # ─── P5: 카나리아 13612W 저장 (BAA: SPY/VWO/VEA/BND) ───
+    try:
+        import yfinance as _yf
+        canary_scores = {}
+        for tk in ["SPY", "VWO", "VEA", "BND"]:
+            try:
+                d = _yf.download(tk, period="2y", progress=False, auto_adjust=True)
+                if d is None or d.empty:
+                    canary_scores[tk] = None
+                    continue
+                close = d["Close"]
+                if hasattr(close, "iloc") and hasattr(close, "shape") and len(close.shape) > 1:
+                    close = close.iloc[:, 0]
+                close = close.dropna()
+                if len(close) < 253:
+                    canary_scores[tk] = None
+                    continue
+                cur = float(close.iloc[-1])
+                p1 = float(close.iloc[-22]); p3 = float(close.iloc[-64])
+                p6 = float(close.iloc[-127]); p12 = float(close.iloc[-253])
+                if min(p1, p3, p6, p12) > 0:
+                    canary_scores[tk] = round(
+                        12 * (cur/p1 - 1) + 4 * (cur/p3 - 1) + 2 * (cur/p6 - 1) + (cur/p12 - 1),
+                        4,
+                    )
+                else:
+                    canary_scores[tk] = None
+            except Exception as _ce:
+                canary_scores[tk] = None
+        new_record["canary"] = canary_scores
+        print(f"  [P5 canary] {canary_scores}")
+    except Exception as _ce_top:
+        print(f"  [P5 canary] 계산 실패: {_ce_top}")
 
     # ─── daily.json 기록용 realtime_estimate (생략 가능, 보존) ───
     if RT_AVAILABLE and not failed_accounts:

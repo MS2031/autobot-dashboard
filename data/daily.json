@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-02 00:51:57",
+  "last_updated": "2026-05-02 01:23:32",
   "mode": "공격",
   "accounts": {
     "ISA": {
-      "initial": 82234894,
+      "initial": 81702150,
       "hybrid_weight": 0.55,
       "smartsplit_weight": 0.45
     },
@@ -13,7 +13,7 @@
       "smartsplit_weight": 0.25
     },
     "IRP": {
-      "initial": 37246917,
+      "initial": 37229054,
       "hybrid_weight": 0.7,
       "safe_weight": 0.3
     }
@@ -662,7 +662,7 @@
       "IRP_safe_actual": 11155121,
       "IRP_safe_signal": 11155121,
       "trades": [],
-      "kis_fetch_at": "2026-05-02T00:51:57",
+      "kis_fetch_at": "2026-05-02T01:23:32",
       "kis_fetch_status": {
         "ISA": "OK",
         "Pension": "OK",
@@ -671,5 +671,5 @@
       "market_closed": true
     }
   ],
-  "last_kis_fetch": "2026-05-02T00:51:57"
+  "last_kis_fetch": "2026-05-02T01:23:32"
 }

@@ -23,6 +23,16 @@ if hasattr(sys.stdout, "buffer"):
 if hasattr(sys.stderr, "buffer"):
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True)
 
+# 듀얼 잔고 추정 엔진 (C:\AutobotEx\realtime_estimate.py)
+sys.path.insert(0, r"C:\AutobotEx")
+try:
+    import realtime_estimate as RT
+    RT_AVAILABLE = True
+except Exception as _rt_err:
+    RT = None
+    RT_AVAILABLE = False
+    _rt_import_err = str(_rt_err)[:200]
+
 DASHBOARD_DIR = r"C:\AutobotEx\dashboard"
 DAILY_JSON    = os.path.join(DASHBOARD_DIR, "data", "daily.json")
 PYTHON_EXE    = sys.executable
@@ -117,7 +127,7 @@ out = {
     "cash": f(b.get("RemainMoney")),
     "stocks": [
         {"code": s.get("StockCode"), "name": s.get("StockName"),
-         "value": f(s.get("StockNowMoney")), "qty": i(s.get("StockQty"))}
+         "value": f(s.get("StockNowMoney")), "qty": i(s.get("StockAmt"))}
         for s in stocks if isinstance(s, dict)
     ],
 }
@@ -522,6 +532,68 @@ def main():
             f"\n⚠️ 일부 계좌 KIS 조회 실패: {', '.join(failed_accounts)}\n{err_lines}"
         )
 
+    # ─── 듀얼 잔고: 공식 + 실시간 추정 ───
+    estimate_block = ""
+    estimate_record = None
+    if RT_AVAILABLE and not failed_accounts:
+        try:
+            metadata = RT.load_metadata()
+            snapshot = RT.fetch_market_snapshot()
+            all_holdings = []
+            for key in ["ISA", "Pension", "IRP"]:
+                r = results.get(key)
+                if not r:
+                    continue
+                for s in r["balance"].get("stocks", []) or []:
+                    all_holdings.append({
+                        "code": s.get("code"),
+                        "name": s.get("name"),
+                        "qty":  s.get("qty", 0),
+                        "evlu_amt": s.get("value", 0),
+                    })
+            estimate = RT.estimate_realtime_balance(total_actual, all_holdings, metadata, snapshot)
+
+            bd_lines = RT.format_breakdown_lines(estimate, snapshot, indent="  ", bullet="└ ")
+            official_label = (
+                "[공식 잔고] {} (한투 앱 기준, 변동 없음)".format(fmt_won(total_actual))
+                if market_closed
+                else "[공식 잔고] {} (KIS API 기준)".format(fmt_won(total_actual))
+            )
+            estimate_block = (
+                f"\n{official_label}\n"
+                f"[실시간 추정] {fmt_won(estimate['estimated'])} "
+                f"({fmt_signed_won(estimate['gap'])}, {estimate['gap_pct']:+.2f}%)"
+            )
+            if bd_lines:
+                estimate_block += "\n" + "\n".join(bd_lines)
+            if market_closed and estimate["gap_pct"] != 0.0:
+                estimate_block += f"\n💡 다음 거래일 시초가 갭 예상: 약 {estimate['gap_pct']:+.2f}%"
+            if estimate.get("unknown_codes"):
+                estimate_block += f"\n⚠️ 메타 미등록: {', '.join(estimate['unknown_codes'])}"
+
+            estimate_record = {
+                "estimated": estimate["estimated"],
+                "gap": estimate["gap"],
+                "gap_pct": round(estimate["gap_pct"], 4),
+                "breakdown": estimate["breakdown"],
+                "snapshot_time": snapshot.get("snapshot_time"),
+                "fx_change_pct": round(snapshot.get("fx_change_pct", 0.0), 4),
+                "nasdaq_change_pct": round(snapshot.get("nasdaq_change_pct", 0.0), 4),
+                "sox_change_pct": round(snapshot.get("sox_change_pct", 0.0), 4),
+                "sp500_change_pct": round(snapshot.get("sp500_change_pct", 0.0), 4),
+            }
+            # 추정 결과를 daily.json 레코드에 부착 (대시보드에서 향후 사용 가능)
+            new_record["realtime_estimate"] = estimate_record
+            upsert_record(daily, new_record)
+            save_daily(daily)
+        except Exception as _est_err:
+            print(f"  [추정] 실패 (공식 잔고만 표기): {_est_err}")
+            estimate_block = ""
+    elif not RT_AVAILABLE:
+        print(f"  [추정] realtime_estimate 모듈 로드 실패 — {_rt_import_err}")
+    elif failed_accounts:
+        print("  [추정] 부분 KIS 실패라 추정 스킵")
+
     msg = (
         f"📊 대시보드 업데이트 완료 {header_suffix}\n"
         f"날짜: {today}\n"
@@ -529,6 +601,7 @@ def main():
         f"ISA: {fmt_won(isa_total)} / 연금: {fmt_won(pen_total)} / IRP: {fmt_won(irp_total)}\n"
         f"오늘 매매: {len(all_trades)}건"
         + failure_note
+        + estimate_block
         + ("" if pushed else "\n(git: 변경사항 없어 push 생략)")
     )
     discord_notify(msg)

@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-02 01:49:41",
+  "last_updated": "2026-05-02 01:59:34",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -662,7 +662,7 @@
       "IRP_safe_actual": 11155121,
       "IRP_safe_signal": 11155121,
       "trades": [],
-      "kis_fetch_at": "2026-05-02T01:49:18",
+      "kis_fetch_at": "2026-05-02T01:59:12",
       "kis_fetch_status": {
         "ISA": "OK",
         "Pension": "OK",
@@ -685,19 +685,22 @@
           "capital": 107776148,
           "current": 108247816,
           "pnl": 471668,
-          "pct": 0.44
+          "pct": 0.44,
+          "cagr": 9.83
         },
         "SmartSplit": {
           "capital": 49025844,
           "current": 49399284,
           "pnl": 373440,
-          "pct": 0.76
+          "pct": 0.76,
+          "cagr": 17.7
         },
         "Safety": {
           "capital": 11168716,
           "current": 11155121,
           "pnl": -13595,
-          "pct": -0.12
+          "pct": -0.12,
+          "cagr": -2.92
         }
       },
       "strategy_matrix": [
@@ -706,65 +709,71 @@
           "capital": 44936182,
           "current": 45360327,
           "pnl": 424144,
-          "pct": 0.94
+          "pct": 0.94,
+          "cagr": 22.35
         },
         {
           "row": "ISA SmartSplit",
           "capital": 36765968,
           "current": 37112994,
           "pnl": 347026,
-          "pct": 0.94
+          "pct": 0.94,
+          "cagr": 22.35
         },
         {
           "row": "연금 Hybrid",
           "capital": 36779628,
           "current": 36858872,
           "pnl": 79244,
-          "pct": 0.22
+          "pct": 0.22,
+          "cagr": 5.38
         },
         {
           "row": "연금 SmartSplit",
           "capital": 12259876,
           "current": 12286290,
           "pnl": 26414,
-          "pct": 0.22
+          "pct": 0.22,
+          "cagr": 5.38
         },
         {
           "row": "IRP Hybrid",
           "capital": 26060338,
           "current": 26028617,
           "pnl": -31721,
-          "pct": -0.12
+          "pct": -0.12,
+          "cagr": -2.92
         },
         {
           "row": "IRP 안전자산",
           "capital": 11168716,
           "current": 11155121,
           "pnl": -13595,
-          "pct": -0.12
+          "pct": -0.12,
+          "cagr": -2.92
         }
       ],
       "canary": {
-        "SPY": 1.8274,
-        "VWO": 1.739,
-        "VEA": 1.4731,
-        "BND": 0.0363
+        "SPY": 1.8404,
+        "VWO": 1.7566,
+        "VEA": 1.4775,
+        "BND": 0.0312
       },
       "realtime_estimate": {
         "official_hantoo": null,
         "official_kis": 168802221,
-        "estimated": 168687603,
-        "gap": -114618,
-        "gap_pct": -0.0679,
+        "estimated": 168740963,
+        "gap": -61258,
+        "gap_pct": -0.0363,
         "breakdown": {
-          "fx_adjustment": -614930,
-          "sox_adjustment": 96929,
-          "nasdaq_adjustment": 403384,
+          "fx_adjustment": -614180,
+          "sox_adjustment": 100287,
+          "nasdaq_adjustment": 452634,
           "sp500_adjustment": 0,
           "other_us_adjustment": 0,
           "irp_lag_adjustment": 0
         },
-        "snapshot_time": "2026-05-02 01:49:39"
+        "snapshot_time": "2026-05-02 01:59:32"
       },
       "pnl_kis": {
         "ISA": 771171,
@@ -774,5 +783,5 @@
       }
     }
   ],
-  "last_kis_fetch": "2026-05-02T01:49:18"
+  "last_kis_fetch": "2026-05-02T01:59:12"
 }

@@ -39,7 +39,7 @@ PYTHON_EXE    = sys.executable
 
 # 누적 손익 base + 자동매매 시작일 (config/initial_capital.py)
 from config.initial_capital import (  # noqa: E402
-    INITIAL_CAPITAL, TRADING_START_DATE, days_in_operation, annualized_return
+    INITIAL_CAPITAL, TRADING_START_DATE, days_in_operation, annualized_return, calc_cagr
 )
 
 # 한투 앱 "계좌 총자산" 일자별 참고값 (사용자 캡처).
@@ -674,29 +674,34 @@ def main():
     smart_init = isa_s_init + pen_s_init
     smart_now = isa_s_now + pen_s_now
 
-    def _strategy_block(init, current):
+    def _strategy_block(init, current, account="Portfolio"):
         pnl = current - init
         pct = (pnl / init * 100.0) if init else 0.0
+        days = days_in_operation(account, today_dt)
+        cagr_pct = calc_cagr(init, current, days)
         return {
             "capital": int(round(init)),
             "current": int(round(current)),
             "pnl": int(round(pnl)),
             "pct": round(pct, 2),
+            "cagr": round(cagr_pct, 2),
         }
 
+    # 전략별 통합: 여러 계좌 합산이라 Portfolio 일수 기준 (가장 빠른 시작일 4/15)
+    # 안전자산은 IRP 전용이라 IRP 일수 사용 (4/17 시작, 운용일 ~2일 차이 무시할 수 있는 수준)
     new_record["strategy_pnl"] = {
-        "Hybrid":     _strategy_block(hybrid_init, hybrid_now),
-        "SmartSplit": _strategy_block(smart_init, smart_now),
-        "Safety":     _strategy_block(irp_safe_init, irp_safe_now),
+        "Hybrid":     _strategy_block(hybrid_init, hybrid_now, "Portfolio"),
+        "SmartSplit": _strategy_block(smart_init, smart_now, "Portfolio"),
+        "Safety":     _strategy_block(irp_safe_init, irp_safe_now, "IRP"),
     }
-    # 매트릭스: 6행 (계좌 × 전략)
+    # 매트릭스 6행: 각 행은 해당 계좌의 운용 시작일 기준 CAGR
     new_record["strategy_matrix"] = [
-        {"row": "ISA Hybrid",     **_strategy_block(isa_h_init, isa_h_now)},
-        {"row": "ISA SmartSplit", **_strategy_block(isa_s_init, isa_s_now)},
-        {"row": "연금 Hybrid",    **_strategy_block(pen_h_init, pen_h_now)},
-        {"row": "연금 SmartSplit", **_strategy_block(pen_s_init, pen_s_now)},
-        {"row": "IRP Hybrid",     **_strategy_block(irp_h_init, irp_h_now)},
-        {"row": "IRP 안전자산",   **_strategy_block(irp_safe_init, irp_safe_now)},
+        {"row": "ISA Hybrid",     **_strategy_block(isa_h_init, isa_h_now, "ISA")},
+        {"row": "ISA SmartSplit", **_strategy_block(isa_s_init, isa_s_now, "ISA")},
+        {"row": "연금 Hybrid",    **_strategy_block(pen_h_init, pen_h_now, "Pension")},
+        {"row": "연금 SmartSplit", **_strategy_block(pen_s_init, pen_s_now, "Pension")},
+        {"row": "IRP Hybrid",     **_strategy_block(irp_h_init, irp_h_now, "IRP")},
+        {"row": "IRP 안전자산",   **_strategy_block(irp_safe_init, irp_safe_now, "IRP")},
     ]
 
     # ─── P5: 카나리아 13612W 저장 (BAA: SPY/VWO/VEA/BND) ───

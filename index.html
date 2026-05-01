@@ -577,6 +577,11 @@ function renderStrategyCards(last) {
               `<span class="v ${colorClass(d.pct)}">${fmtPct(d.pct)}</span></div>`;
       body += `<div class="row"><span class="k">누적 수익금</span>` +
               `<span class="v ${colorClass(d.pnl)}">${fmtSignedWon(d.pnl)}</span></div>`;
+      // P10: CAGR 라인 추가
+      if (typeof d.cagr === 'number') {
+        body += `<div class="row"><span class="k">CAGR</span>` +
+                `<span class="v ${colorClass(d.cagr)}">${(d.cagr >= 0 ? '+' : '') + d.cagr.toFixed(2)}%</span></div>`;
+      }
     }
     const el = document.createElement('div');
     el.className = 'card';
@@ -601,25 +606,33 @@ function renderStrategyMatrix(last) {
       <th>현재</th>
       <th>누적 손익</th>
       <th>수익률</th>
+      <th>CAGR</th>
     </tr></thead><tbody>`;
   let totCap = 0, totCur = 0, totPnl = 0;
   matrix.forEach(r => {
     totCap += r.capital; totCur += r.current; totPnl += r.pnl;
+    const cagrCell = (typeof r.cagr === 'number')
+      ? `<td class="${colorClass(r.cagr)}">${(r.cagr >= 0 ? '+' : '') + r.cagr.toFixed(2)}%</td>`
+      : `<td>-</td>`;
     html += `<tr>
       <td>${r.row}</td>
       <td>${fmtWon(r.capital)}</td>
       <td>${fmtWon(r.current)}</td>
       <td class="${colorClass(r.pnl)}">${fmtSignedWon(r.pnl)}</td>
       <td class="${colorClass(r.pct)}">${fmtPct(r.pct)}</td>
+      ${cagrCell}
     </tr>`;
   });
   const totPct = totCap ? (totPnl / totCap * 100) : 0;
+  // 합계 CAGR: Portfolio 기준 (last.cagr.Portfolio가 매트릭스 합과 같은 의미)
+  const totCagr = (last && last.cagr && typeof last.cagr.Portfolio === 'number') ? last.cagr.Portfolio : 0;
   html += `<tr style="border-top:2px solid #4a90e2;">
     <td><strong>합계</strong></td>
     <td><strong>${fmtWon(totCap)}</strong></td>
     <td><strong>${fmtWon(totCur)}</strong></td>
     <td class="${colorClass(totPnl)}"><strong>${fmtSignedWon(totPnl)}</strong></td>
     <td class="${colorClass(totPct)}"><strong>${fmtPct(totPct)}</strong></td>
+    <td class="${colorClass(totCagr)}"><strong>${(totCagr >= 0 ? '+' : '') + totCagr.toFixed(2)}%</strong></td>
   </tr></tbody></table>`;
   wrap.innerHTML = html;
 }

@@ -38,7 +38,9 @@ DAILY_JSON    = os.path.join(DASHBOARD_DIR, "data", "daily.json")
 PYTHON_EXE    = sys.executable
 
 # 누적 손익 base + 자동매매 시작일 (config/initial_capital.py)
-from config.initial_capital import INITIAL_CAPITAL  # noqa: E402
+from config.initial_capital import (  # noqa: E402
+    INITIAL_CAPITAL, TRADING_START_DATE, days_in_operation, annualized_return
+)
 
 # 한투 앱 "계좌 총자산" 일자별 참고값 (사용자 캡처).
 # Phase 2 KIS raw 분석 결과 한투 세전평가 = KIS scts_evlu_amt + α (자동 매핑 불가).
@@ -570,12 +572,26 @@ def main():
     def _pct(amt, base):
         return (amt / base * 100.0) if base else 0.0
 
+    today_dt = datetime.date.today()
+    p_days = days_in_operation("Portfolio", today_dt)
+    p_start = TRADING_START_DATE["Portfolio"].isoformat()
+    p_info = annualized_return("Portfolio", total_actual, today_dt, always_show=True)
+    isa_info = annualized_return("ISA", isa_total, today_dt, always_show=True)
+    pen_info = annualized_return("Pension", pen_total, today_dt, always_show=True)
+    irp_info = annualized_return("IRP", irp_total, today_dt, always_show=True)
+
+    def _fmt_cagr(info):
+        sign = "+" if info["cagr_pct"] >= 0 else ""
+        return f"{sign}{info['cagr_pct']:.2f}% {info['reliability']}"
+
     main_block = [
         "[누적 손익 (KIS 기준 — 메인)]",
-        f"  ISA: {fmt_won(isa_total)} / 누적 {fmt_signed_won(isa_pnl)} ({_pct(isa_pnl, cap['ISA']):+.2f}%)",
-        f"  연금: {fmt_won(pen_total)} / 누적 {fmt_signed_won(pen_pnl)} ({_pct(pen_pnl, cap['Pension']):+.2f}%)",
-        f"  IRP: {fmt_won(irp_total)} / 누적 {fmt_signed_won(irp_pnl)} ({_pct(irp_pnl, cap['IRP']):+.2f}%)",
-        f"  합계: {fmt_won(total_actual)} / 누적 {fmt_signed_won(total_pnl)} ({_pct(total_pnl, cap['Total']):+.2f}%)",
+        f"  운용 시작: {p_start} (포트폴리오 {p_days}일째)",
+        f"  ISA  ({isa_info['days']}일): {fmt_won(isa_total)} / 누적 {fmt_signed_won(isa_pnl)} ({_pct(isa_pnl, cap['ISA']):+.2f}%) / CAGR {_fmt_cagr(isa_info)}",
+        f"  연금 ({pen_info['days']}일): {fmt_won(pen_total)} / 누적 {fmt_signed_won(pen_pnl)} ({_pct(pen_pnl, cap['Pension']):+.2f}%) / CAGR {_fmt_cagr(pen_info)}",
+        f"  IRP  ({irp_info['days']}일): {fmt_won(irp_total)} / 누적 {fmt_signed_won(irp_pnl)} ({_pct(irp_pnl, cap['IRP']):+.2f}%) / CAGR {_fmt_cagr(irp_info)}",
+        f"  합계: {fmt_won(total_actual)} / 누적 {fmt_signed_won(total_pnl)} ({_pct(total_pnl, cap['Total']):+.2f}%) / CAGR {_fmt_cagr(p_info)}",
+        "  ※ CAGR 신뢰도: <30일⚠️매우낮음 / <90일⚠️낮음 / <365일◯보통 / ≥365일✅신뢰",
     ]
 
     # ─── D+2 미결제 결제 예정 ───

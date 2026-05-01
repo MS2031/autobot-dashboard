@@ -64,6 +64,35 @@ ACCOUNTS = {
 
 STRATEGY_LABEL = {"hybrid": "Hybrid", "smartsplit": "SmartSplit", "safe": "안전자산"}
 
+# 한국거래소 휴장일 (주말 외) — 2026년분 하드코딩.
+# 매년 1월 KRX가 다음해 휴장일을 공지하면 갱신할 것.
+KR_HOLIDAYS = {
+    "2026-01-01",  # 신정
+    "2026-02-16", "2026-02-17", "2026-02-18",  # 설날 연휴
+    "2026-03-01",  # 삼일절(일요일) — 대체휴일은 별도 조회 필요
+    "2026-05-01",  # 근로자의 날
+    "2026-05-05",  # 어린이날
+    "2026-05-25",  # 부처님오신날
+    "2026-06-06",  # 현충일(토)
+    "2026-08-15",  # 광복절(토)
+    "2026-09-24", "2026-09-25", "2026-09-26",  # 추석 연휴
+    "2026-10-03",  # 개천절(토)
+    "2026-10-09",  # 한글날(금)
+    "2026-12-25",  # 성탄절
+    "2026-12-31",  # 연말 휴장
+}
+
+
+def is_market_closed(date_str):
+    """주말 또는 한국거래소 휴장일이면 True."""
+    try:
+        d = datetime.date.fromisoformat(date_str)
+    except Exception:
+        return False
+    if d.weekday() >= 5:
+        return True
+    return date_str in KR_HOLIDAYS
+
 
 # ───────────────────────────── 봇 폴더에서 실행할 inline 스크립트
 # 출력은 ###JSON_BEGIN###...###JSON_END###로 감싸서, 봇 모듈의 부수 print를 무시하게 함.
@@ -324,46 +353,124 @@ def build_daily_alert(daily_pct, daily_amt, total_actual):
 
 def main():
     today = datetime.date.today().isoformat()
-    print(f"[{today}] AutobotEx Dashboard 업데이트 시작")
+    market_closed = is_market_closed(today)
+    mode_tag = "(휴장일 NAV 반영)" if market_closed else "(평일)"
+    print(f"[{today}] AutobotEx Dashboard 업데이트 시작 {mode_tag}")
 
     daily = load_daily()
+    existing_record = next(
+        (r for r in daily.get("daily_records", []) if r.get("date") == today),
+        {},
+    )
 
+    # 계좌별 try/except — 1~2개 실패는 부분 갱신, 전 계좌 실패만 raise.
     results = {}
+    fetch_status = {}
+    fetch_times = {}
+    last_errors = {}
     for key, meta in ACCOUNTS.items():
-        print(f"  [{key}] 잔고 조회 중...")
-        bal = run_subprocess(meta["dir"], BALANCE_SCRIPT, f"{key}.balance")
-        print(f"  [{key}] 매매내역 조회 중...")
-        orders = run_subprocess(meta["dir"], ORDERS_SCRIPT, f"{key}.orders")
-        results[key] = {
-            "balance": bal,
-            "orders":  orders,
-            "split":   split_balance(key, bal),
+        fetch_start = datetime.datetime.now()
+        fetch_times[key] = fetch_start.strftime("%H:%M:%S")
+        try:
+            print(f"  [{key}] 잔고 조회 중...")
+            bal = run_subprocess(meta["dir"], BALANCE_SCRIPT, f"{key}.balance")
+            print(f"  [{key}] 매매내역 조회 중...")
+            orders = run_subprocess(meta["dir"], ORDERS_SCRIPT, f"{key}.orders")
+            results[key] = {
+                "balance": bal,
+                "orders":  orders,
+                "split":   split_balance(key, bal),
+            }
+            fetch_status[key] = "OK"
+            print(
+                f"  [{key}] 총잔고 {fmt_won(bal['total'])} "
+                f"(현금 {fmt_won(bal['cash'])}) / 매매 {len(orders)}건 / KIS {fetch_times[key]}"
+            )
+        except Exception as e:
+            fetch_status[key] = "FAILED"
+            last_errors[key] = (str(e) or repr(e))[:300]
+            results[key] = None
+            print(f"  [{key}] ❌ KIS 조회 실패: {last_errors[key]}")
+
+    failed_accounts = [k for k, s in fetch_status.items() if s == "FAILED"]
+    if len(failed_accounts) == len(ACCOUNTS):
+        raise RuntimeError(
+            f"전 계좌 KIS 조회 실패. errors={last_errors}"
+        )
+
+    # 부분 실패 시 실패 계좌는 기존 same-date 레코드 값을 보존 (캐시 사용을 명시적으로 마킹).
+    def split_for(account_key, sub_keys):
+        r = results.get(account_key)
+        if r is not None:
+            return {sub: r["split"][sub] for sub in sub_keys}
+        # 기존 same-date 레코드의 같은 필드를 재사용 (전일 비교용 보존).
+        # 없으면 0 — kis_fetch_status="FAILED"로 차트에서 식별 가능.
+        if account_key == "ISA":
+            return {
+                "hybrid": existing_record.get("ISA_hybrid", 0),
+                "smartsplit": existing_record.get("ISA_smartsplit", 0),
+            }
+        if account_key == "Pension":
+            return {
+                "hybrid": existing_record.get("Pension_hybrid", 0),
+                "smartsplit": existing_record.get("Pension_smartsplit", 0),
+            }
+        if account_key == "IRP":
+            return {
+                "hybrid": existing_record.get("IRP_hybrid_actual", 0),
+                "safe": existing_record.get("IRP_safe_actual", 0),
+            }
+        return {sub: 0 for sub in sub_keys}
+
+    isa_split = split_for("ISA", ["hybrid", "smartsplit"])
+    pen_split = split_for("Pension", ["hybrid", "smartsplit"])
+    irp_split_eff = split_for("IRP", ["hybrid", "safe"])
+
+    if results.get("IRP"):
+        irp_signal = compute_irp_signal(daily, results["IRP"]["split"])
+    else:
+        irp_signal = {
+            "hybrid_signal": existing_record.get("IRP_hybrid_signal", irp_split_eff["hybrid"]),
+            "safe_signal":   existing_record.get("IRP_safe_signal",   irp_split_eff["safe"]),
         }
-        print(f"  [{key}] 총잔고 {fmt_won(bal['total'])} (현금 {fmt_won(bal['cash'])}) / 매매 {len(orders)}건")
 
-    irp_signal = compute_irp_signal(daily, results["IRP"]["split"])
-
+    # 매매내역: 성공한 계좌만 새로 수집, 실패한 계좌는 same-date 레코드의 trades를 보존.
     all_trades = []
     for key in ["ISA", "Pension", "IRP"]:
-        all_trades.extend(normalize_trades(key, results[key]["orders"]))
+        if results.get(key):
+            all_trades.extend(normalize_trades(key, results[key]["orders"]))
+        else:
+            all_trades.extend(
+                t for t in existing_record.get("trades", []) if t.get("account") == key
+            )
+
+    latest_fetch_time = max(fetch_times.values())
+    latest_fetch_iso = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
     new_record = {
         "date": today,
         "mode": daily.get("mode", "공격"),
-        "ISA_hybrid":          int(round(results["ISA"]["split"]["hybrid"])),
-        "ISA_smartsplit":      int(round(results["ISA"]["split"]["smartsplit"])),
-        "Pension_hybrid":      int(round(results["Pension"]["split"]["hybrid"])),
-        "Pension_smartsplit":  int(round(results["Pension"]["split"]["smartsplit"])),
-        "IRP_hybrid_actual":   int(round(results["IRP"]["split"]["hybrid"])),
+        "ISA_hybrid":          int(round(isa_split["hybrid"])),
+        "ISA_smartsplit":      int(round(isa_split["smartsplit"])),
+        "Pension_hybrid":      int(round(pen_split["hybrid"])),
+        "Pension_smartsplit":  int(round(pen_split["smartsplit"])),
+        "IRP_hybrid_actual":   int(round(irp_split_eff["hybrid"])),
         "IRP_hybrid_signal":   int(round(irp_signal["hybrid_signal"])),
-        "IRP_safe_actual":     int(round(results["IRP"]["split"]["safe"])),
+        "IRP_safe_actual":     int(round(irp_split_eff["safe"])),
         "IRP_safe_signal":     int(round(irp_signal["safe_signal"])),
         "trades": all_trades,
+        "kis_fetch_at": latest_fetch_iso,
+        "kis_fetch_status": dict(fetch_status),
+        "market_closed": market_closed,
     }
 
     upsert_record(daily, new_record)
+    daily["last_kis_fetch"] = latest_fetch_iso
     save_daily(daily)
-    print(f"  daily.json 저장 완료 (총 {len(daily['daily_records'])} 행, trades {len(all_trades)}건)")
+    print(
+        f"  daily.json 저장 완료 (총 {len(daily['daily_records'])} 행, "
+        f"trades {len(all_trades)}건, fetch_status={fetch_status})"
+    )
 
     pushed = git_push(today)
 
@@ -379,32 +486,49 @@ def main():
     cum_amount = total_actual - initial_total
 
     # 단계별 일일 수익률 경고 (전날 대비 ±3% 주의 / ±5% 경고)
-    # date < today 인 레코드 중 가장 최근 것을 prev로 사용 (미래 더미 레코드에 영향 없음)
-    prev_recs = [
-        r for r in daily.get("daily_records", [])
-        if r.get("date", "") < today
-    ]
-    if prev_recs:
-        prev_rec = prev_recs[-1]
-        prev_total = (
-            prev_rec.get("ISA_hybrid", 0) + prev_rec.get("ISA_smartsplit", 0) +
-            prev_rec.get("Pension_hybrid", 0) + prev_rec.get("Pension_smartsplit", 0) +
-            prev_rec.get("IRP_hybrid_actual", 0) + prev_rec.get("IRP_safe_actual", 0)
+    # date < today 인 레코드 중 가장 최근 것을 prev로 사용 (미래 더미 레코드에 영향 없음).
+    # 부분실패가 끼면 노이즈가 생길 수 있으므로 전 계좌 OK일 때만 발송.
+    if not failed_accounts:
+        prev_recs = [
+            r for r in daily.get("daily_records", [])
+            if r.get("date", "") < today
+        ]
+        if prev_recs:
+            prev_rec = prev_recs[-1]
+            prev_total = (
+                prev_rec.get("ISA_hybrid", 0) + prev_rec.get("ISA_smartsplit", 0) +
+                prev_rec.get("Pension_hybrid", 0) + prev_rec.get("Pension_smartsplit", 0) +
+                prev_rec.get("IRP_hybrid_actual", 0) + prev_rec.get("IRP_safe_actual", 0)
+            )
+            if prev_total > 0:
+                daily_amt = total_actual - prev_total
+                daily_pct = (daily_amt / prev_total) * 100
+                alert = build_daily_alert(daily_pct, daily_amt, total_actual)
+                if alert:
+                    discord_notify(alert)
+                    print(f"  단계별 알림 전송 (prev={prev_rec.get('date')}): {fmt_pct(daily_pct)}")
+
+    header_suffix = (
+        f"(휴장일 NAV 반영, KIS fetch: {latest_fetch_time})"
+        if market_closed
+        else f"(KIS fetch: {latest_fetch_time})"
+    )
+    failure_note = ""
+    if failed_accounts:
+        err_lines = "\n".join(
+            f"  · {a}: {last_errors.get(a, '?')[:120]}" for a in failed_accounts
         )
-        if prev_total > 0:
-            daily_amt = total_actual - prev_total
-            daily_pct = (daily_amt / prev_total) * 100
-            alert = build_daily_alert(daily_pct, daily_amt, total_actual)
-            if alert:
-                discord_notify(alert)
-                print(f"  단계별 알림 전송 (prev={prev_rec.get('date')}): {fmt_pct(daily_pct)}")
+        failure_note = (
+            f"\n⚠️ 일부 계좌 KIS 조회 실패: {', '.join(failed_accounts)}\n{err_lines}"
+        )
 
     msg = (
-        "📊 대시보드 업데이트 완료\n"
+        f"📊 대시보드 업데이트 완료 {header_suffix}\n"
         f"날짜: {today}\n"
         f"총자산: {fmt_won(total_actual)} ({fmt_signed_won(cum_amount)})\n"
         f"ISA: {fmt_won(isa_total)} / 연금: {fmt_won(pen_total)} / IRP: {fmt_won(irp_total)}\n"
         f"오늘 매매: {len(all_trades)}건"
+        + failure_note
         + ("" if pushed else "\n(git: 변경사항 없어 push 생략)")
     )
     discord_notify(msg)

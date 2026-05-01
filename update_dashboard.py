@@ -37,13 +37,8 @@ DASHBOARD_DIR = r"C:\AutobotEx\dashboard"
 DAILY_JSON    = os.path.join(DASHBOARD_DIR, "data", "daily.json")
 PYTHON_EXE    = sys.executable
 
-# 누적 손익 계산 base (사용자 보정값, 5/1 시점)
-INITIAL_CAPITAL = {
-    "ISA":     81_702_150,
-    "Pension": 49_039_504,
-    "IRP":     37_229_054,
-    "Total":   167_970_708,
-}
+# 누적 손익 base + 자동매매 시작일 (config/initial_capital.py)
+from config.initial_capital import INITIAL_CAPITAL  # noqa: E402
 
 # 한투 앱 "계좌 총자산" 일자별 참고값 (사용자 캡처).
 # Phase 2 KIS raw 분석 결과 한투 세전평가 = KIS scts_evlu_amt + α (자동 매핑 불가).

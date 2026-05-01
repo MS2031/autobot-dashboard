@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-01 21:04:19",
+  "last_updated": "2026-05-02 00:20:26",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -626,8 +626,50 @@
         "Pension": "OK",
         "IRP": "OK"
       },
+      "market_closed": true,
+      "realtime_estimate": {
+        "official_hantoo": 167169116,
+        "official_kis": 168802221,
+        "estimated": 167451483,
+        "gap": 282367,
+        "gap_pct": 0.1689,
+        "breakdown": {
+          "fx_adjustment": -545189,
+          "sox_adjustment": 425016,
+          "nasdaq_adjustment": 402541,
+          "sp500_adjustment": 0,
+          "other_us_adjustment": 0,
+          "irp_lag_adjustment": 0
+        },
+        "snapshot_time": "2026-05-01 21:04:41"
+      },
+      "pnl_kis": {
+        "ISA": 771171,
+        "Pension": 105658,
+        "IRP": -45316,
+        "Total": 831513
+      }
+    },
+    {
+      "date": "2026-05-02",
+      "mode": "공격",
+      "ISA_hybrid": 45360327,
+      "ISA_smartsplit": 37112994,
+      "Pension_hybrid": 36858872,
+      "Pension_smartsplit": 12286290,
+      "IRP_hybrid_actual": 26028617,
+      "IRP_hybrid_signal": 26028617,
+      "IRP_safe_actual": 11155121,
+      "IRP_safe_signal": 11155121,
+      "trades": [],
+      "kis_fetch_at": "2026-05-02T00:20:26",
+      "kis_fetch_status": {
+        "ISA": "OK",
+        "Pension": "OK",
+        "IRP": "OK"
+      },
       "market_closed": true
     }
   ],
-  "last_kis_fetch": "2026-05-01T21:04:19"
+  "last_kis_fetch": "2026-05-02T00:20:26"
 }

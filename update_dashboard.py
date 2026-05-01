@@ -153,7 +153,9 @@ out = {
     "cash": f(b.get("RemainMoney")),
     "stocks": [
         {"code": s.get("StockCode"), "name": s.get("StockName"),
-         "value": f(s.get("StockNowMoney")), "qty": i(s.get("StockAmt"))}
+         "value": f(s.get("StockNowMoney")),
+         "pchs": f(s.get("StockOriMoney")),
+         "qty": i(s.get("StockAmt"))}
         for s in stocks if isinstance(s, dict)
     ],
 }
@@ -654,54 +656,76 @@ def main():
         "IRP": round(irp_info["cagr_pct"], 2),
     }
 
-    # ─── P9: strategy_pnl 저장 (Hybrid / SmartSplit / 안전자산 통합) ───
-    isa_h_init = INITIAL_CAPITAL["ISA"] * 0.55
-    isa_s_init = INITIAL_CAPITAL["ISA"] * 0.45
-    pen_h_init = INITIAL_CAPITAL["Pension"] * 0.75
-    pen_s_init = INITIAL_CAPITAL["Pension"] * 0.25
-    irp_h_init = INITIAL_CAPITAL["IRP"] * 0.70
-    irp_safe_init = INITIAL_CAPITAL["IRP"] * 0.30
+    # ─── P11: 종목별 실분류 기반 strategy_pnl + strategy_matrix ───
+    # KIS API stocks 리스트를 split_account_by_strategy 형식으로 정규화
+    def _normalize_holdings(account_key):
+        r = results.get(account_key)
+        if not r:
+            return []
+        return [
+            {"ticker": s.get("code"), "pchs_amt": s.get("pchs", 0), "evlu_amt": s.get("value", 0)}
+            for s in r["balance"].get("stocks", []) or []
+        ]
 
-    isa_h_now = new_record["ISA_hybrid"]
-    isa_s_now = new_record["ISA_smartsplit"]
-    pen_h_now = new_record["Pension_hybrid"]
-    pen_s_now = new_record["Pension_smartsplit"]
-    irp_h_now = new_record["IRP_hybrid_actual"]
-    irp_safe_now = new_record["IRP_safe_actual"]
+    isa_split = SC.split_account_by_strategy("ISA", _normalize_holdings("ISA"))
+    pen_split = SC.split_account_by_strategy("Pension", _normalize_holdings("Pension"))
+    irp_split = SC.split_account_by_strategy("IRP", _normalize_holdings("IRP"))
 
-    hybrid_init = isa_h_init + pen_h_init + irp_h_init
-    hybrid_now = isa_h_now + pen_h_now + irp_h_now
-    smart_init = isa_s_init + pen_s_init
-    smart_now = isa_s_now + pen_s_now
+    print(f"  [P11 분류] ISA Hybrid {isa_split['Hybrid']['tickers']}")
+    print(f"  [P11 분류] ISA SmartSplit {isa_split['SmartSplit']['tickers']}")
+    print(f"  [P11 분류] 연금 Hybrid {pen_split['Hybrid']['tickers']}")
+    print(f"  [P11 분류] 연금 SmartSplit {pen_split['SmartSplit']['tickers']}")
+    print(f"  [P11 분류] IRP Hybrid {irp_split['Hybrid']['tickers']}")
+    print(f"  [P11 분류] IRP Safety {irp_split['Safety']['tickers']}")
 
-    def _strategy_block(init, current, account="Portfolio"):
-        pnl = current - init
-        pct = (pnl / init * 100.0) if init else 0.0
-        days = days_in_operation(account, today_dt)
-        cagr_pct = calc_cagr(init, current, days)
+    def _block_from_split(split_data, account_for_days):
+        pchs = split_data["pchs"]
+        evlu = split_data["evlu"]
+        pnl = split_data["pnl"]
+        pct = (pnl / pchs * 100.0) if pchs else 0.0
+        days = days_in_operation(account_for_days, today_dt)
+        cagr_pct = calc_cagr(pchs, evlu, days)
         return {
-            "capital": int(round(init)),
-            "current": int(round(current)),
+            "capital": int(round(pchs)),
+            "current": int(round(evlu)),
             "pnl": int(round(pnl)),
             "pct": round(pct, 2),
             "cagr": round(cagr_pct, 2),
+            "tickers": split_data["tickers"],
         }
 
-    # 전략별 통합: 여러 계좌 합산이라 Portfolio 일수 기준 (가장 빠른 시작일 4/15)
-    # 안전자산은 IRP 전용이라 IRP 일수 사용 (4/17 시작, 운용일 ~2일 차이 무시할 수 있는 수준)
+    # 전략별 통합 — 3계좌 동일 전략 합산
+    def _combine(splits, key, account_for_days):
+        combined = {"pchs": 0.0, "evlu": 0.0, "pnl": 0.0, "tickers": []}
+        for sp in splits:
+            combined["pchs"] += sp[key]["pchs"]
+            combined["evlu"] += sp[key]["evlu"]
+            combined["tickers"].extend(sp[key]["tickers"])
+        combined["pnl"] = combined["evlu"] - combined["pchs"]
+        return _block_from_split(combined, account_for_days)
+
     new_record["strategy_pnl"] = {
-        "Hybrid":     _strategy_block(hybrid_init, hybrid_now, "Portfolio"),
-        "SmartSplit": _strategy_block(smart_init, smart_now, "Portfolio"),
-        "Safety":     _strategy_block(irp_safe_init, irp_safe_now, "IRP"),
+        "Hybrid":     _combine([isa_split, pen_split, irp_split], "Hybrid", "Portfolio"),
+        "SmartSplit": _combine([isa_split, pen_split], "SmartSplit", "Portfolio"),
+        "Safety":     _combine([irp_split], "Safety", "IRP"),
     }
-    # 매트릭스 6행: 각 행은 해당 계좌의 운용 시작일 기준 CAGR
+
+    # 매트릭스: 각 계좌 × 전략 6행 + 현금 (미투입) 행
+    isa_cash = float(results["ISA"]["balance"]["cash"]) if results.get("ISA") else 0.0
+    pen_cash = float(results["Pension"]["balance"]["cash"]) if results.get("Pension") else 0.0
+    irp_cash = float(results["IRP"]["balance"]["cash"]) if results.get("IRP") else 0.0
+    total_cash = isa_cash + pen_cash + irp_cash
+
     new_record["strategy_matrix"] = [
-        {"row": "ISA Hybrid",     **_strategy_block(isa_h_init, isa_h_now, "ISA")},
-        {"row": "ISA SmartSplit", **_strategy_block(isa_s_init, isa_s_now, "ISA")},
-        {"row": "연금 Hybrid",    **_strategy_block(pen_h_init, pen_h_now, "Pension")},
-        {"row": "연금 SmartSplit", **_strategy_block(pen_s_init, pen_s_now, "Pension")},
-        {"row": "IRP Hybrid",     **_strategy_block(irp_h_init, irp_h_now, "IRP")},
-        {"row": "IRP 안전자산",   **_strategy_block(irp_safe_init, irp_safe_now, "IRP")},
+        {"row": "ISA Hybrid",      **_block_from_split(isa_split["Hybrid"], "ISA")},
+        {"row": "ISA SmartSplit",  **_block_from_split(isa_split["SmartSplit"], "ISA")},
+        {"row": "연금 Hybrid",     **_block_from_split(pen_split["Hybrid"], "Pension")},
+        {"row": "연금 SmartSplit", **_block_from_split(pen_split["SmartSplit"], "Pension")},
+        {"row": "IRP Hybrid",      **_block_from_split(irp_split["Hybrid"], "IRP")},
+        {"row": "IRP 안전자산",    **_block_from_split(irp_split["Safety"], "IRP")},
+        {"row": "현금 (미투입)",   "capital": int(round(total_cash)),
+         "current": int(round(total_cash)), "pnl": 0, "pct": 0.0, "cagr": 0.0,
+         "tickers": []},
     ]
 
     # ─── P5: 카나리아 13612W 저장 (BAA: SPY/VWO/VEA/BND) ───

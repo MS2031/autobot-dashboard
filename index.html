@@ -602,9 +602,9 @@ function renderStrategyMatrix(last) {
   let html = `<table>
     <thead><tr>
       <th>계좌 × 전략</th>
-      <th>원금</th>
-      <th>현재</th>
-      <th>누적 손익</th>
+      <th title="해당 전략 종목들의 매입금액 합계 (현금 행은 보유 현금)">매입</th>
+      <th title="현재 평가금액">평가</th>
+      <th>손익</th>
       <th>수익률</th>
       <th>CAGR</th>
     </tr></thead><tbody>`;
@@ -614,7 +614,11 @@ function renderStrategyMatrix(last) {
     const cagrCell = (typeof r.cagr === 'number')
       ? `<td class="${colorClass(r.cagr)}">${(r.cagr >= 0 ? '+' : '') + r.cagr.toFixed(2)}%</td>`
       : `<td>-</td>`;
-    html += `<tr>
+    // P11: tickers 툴팁 (마우스 오버 시 보유 종목 코드 표시)
+    const tickersTitle = (r.tickers && r.tickers.length)
+      ? ` title="보유 ${r.tickers.length}종: ${r.tickers.join(', ')}"`
+      : '';
+    html += `<tr${tickersTitle}>
       <td>${r.row}</td>
       <td>${fmtWon(r.capital)}</td>
       <td>${fmtWon(r.current)}</td>

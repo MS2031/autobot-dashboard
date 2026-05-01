@@ -150,6 +150,16 @@
   </section>
 
   <section>
+    <h2>전략별 현황 (Hybrid / SmartSplit / 안전자산)</h2>
+    <div class="grid grid-3" id="strategyCards"></div>
+  </section>
+
+  <section>
+    <h2>계좌 × 전략 매트릭스</h2>
+    <div class="table-wrap" id="strategyMatrixWrap"><div class="empty">로딩 중...</div></div>
+  </section>
+
+  <section>
     <h2>오늘 매매내역</h2>
     <div class="table-wrap" id="tradesTableWrap"><div class="empty">로딩 중...</div></div>
   </section>
@@ -367,13 +377,26 @@ async function load() {
   setSummary('cumPct',      fmtPct(cumPct),           cumPct);
   setSummary('cumAmount',   fmtSignedWon(cumAmount),  cumAmount);
 
-  // P2: CAGR 카드 — record.cagr.Portfolio 사용 (없으면 -)
-  const cagrPortfolio = (last.cagr && typeof last.cagr.Portfolio === 'number') ? last.cagr.Portfolio : null;
+  // P2/P7: CAGR 카드 — last에 cagr 없으면 records 역순 순회로 가장 최근 cagr 보유 레코드 사용
+  function findLatestCagr(records, key) {
+    for (let i = records.length - 1; i >= 0; i--) {
+      const c = records[i].cagr;
+      if (c && typeof c[key] === 'number') return c[key];
+    }
+    return null;
+  }
+  const cagrPortfolio = findLatestCagr(records, 'Portfolio');
+  console.log('[CAGR debug] last.cagr=', last.cagr, 'fallback Portfolio=', cagrPortfolio);
   setSummary('cagrTotal',
     cagrPortfolio == null ? '-' : (cagrPortfolio >= 0 ? '+' : '') + cagrPortfolio.toFixed(2) + '%',
     cagrPortfolio || 0);
+  // records 데이터 자체를 다른 함수에서도 쓰도록 윈도우 노출 (디버그용)
+  window._dashRecords = records;
+  window._dashLatestCagr = findLatestCagr;
 
   renderAccountCards(accs, last);
+  renderStrategyCards(last);
+  renderStrategyMatrix(last);
   renderTrades(last.trades || []);
   renderPeriodSummary(records);
   renderProfitTable('dailyTableWrap', records, accs, 'daily');
@@ -500,14 +523,19 @@ function renderAccountCards(accs, last) {
       let summary = '';
       summary += `<div class="row"><span class="k">계좌 수익률</span>` +
                  `<span class="v ${colorClass(accountPct)}">${fmtPct(accountPct)}</span></div>`;
-      summary += `<div class="row"><span class="k">계좌 수익금</span>` +
-                 `<span class="v ${colorClass(accountProfit)}">${fmtSignedWon(accountProfit)}</span></div>`;
-      // P2: 계좌별 CAGR 라인 (단순 % 표시, 신뢰도 라벨 없음)
-      const accCagr = (last.cagr && typeof last.cagr[c.key] === 'number') ? last.cagr[c.key] : null;
+      // P2/P8: 계좌별 CAGR 라인 — 역순 순회 안전망 (옛날 레코드 cagr 없을 수 있음)
+      let accCagr = null;
+      if (window._dashLatestCagr && window._dashRecords) {
+        accCagr = window._dashLatestCagr(window._dashRecords, c.key);
+      } else if (last.cagr && typeof last.cagr[c.key] === 'number') {
+        accCagr = last.cagr[c.key];
+      }
       if (accCagr != null) {
         summary += `<div class="row"><span class="k">CAGR</span>` +
                    `<span class="v ${colorClass(accCagr)}">${(accCagr >= 0 ? '+' : '') + accCagr.toFixed(2)}%</span></div>`;
       }
+      summary += `<div class="row"><span class="k">계좌 수익금</span>` +
+                 `<span class="v ${colorClass(accountProfit)}">${fmtSignedWon(accountProfit)}</span></div>`;
       // P3: IRP 카드에서 "실제 vs 시그널" 라인 제거. 월간 잠금 배지로 대체.
       if (c.key === 'IRP') {
         summary += `<div class="row"><span class="k">전략</span>` +
@@ -523,6 +551,77 @@ function renderAccountCards(accs, last) {
     el.innerHTML = body;
     wrap.appendChild(el);
   });
+}
+
+// P9: 전략별 카드 (Hybrid / SmartSplit / 안전자산)
+function renderStrategyCards(last) {
+  const wrap = document.getElementById('strategyCards');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const sp = (last && last.strategy_pnl) || {};
+  const items = [
+    { key: 'Hybrid',     label: 'Hybrid (BAA)',    color: '#4ade80' },
+    { key: 'SmartSplit', label: 'SmartSplit',       color: '#60a5fa' },
+    { key: 'Safety',     label: '안전자산 (IRP 30%)', color: '#a78bfa' },
+  ];
+  items.forEach(it => {
+    const d = sp[it.key];
+    let body = `<div class="label" style="color:${it.color};">${it.label}</div>`;
+    if (!d) {
+      body += `<div class="value neutral">데이터 수집 중</div>`;
+    } else {
+      body += `<div class="value neutral">${fmtWon(d.current)}</div>`;
+      body += `<div class="row"><span class="k">원금</span>` +
+              `<span class="v neutral">${fmtWon(d.capital)}</span></div>`;
+      body += `<div class="row"><span class="k">누적 수익률</span>` +
+              `<span class="v ${colorClass(d.pct)}">${fmtPct(d.pct)}</span></div>`;
+      body += `<div class="row"><span class="k">누적 수익금</span>` +
+              `<span class="v ${colorClass(d.pnl)}">${fmtSignedWon(d.pnl)}</span></div>`;
+    }
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = body;
+    wrap.appendChild(el);
+  });
+}
+
+// P9: 계좌 × 전략 매트릭스 (6행 + 합계)
+function renderStrategyMatrix(last) {
+  const wrap = document.getElementById('strategyMatrixWrap');
+  if (!wrap) return;
+  const matrix = (last && last.strategy_matrix) || [];
+  if (!matrix.length) {
+    wrap.innerHTML = '<div class="empty">데이터 수집 중...</div>';
+    return;
+  }
+  let html = `<table>
+    <thead><tr>
+      <th>계좌 × 전략</th>
+      <th>원금</th>
+      <th>현재</th>
+      <th>누적 손익</th>
+      <th>수익률</th>
+    </tr></thead><tbody>`;
+  let totCap = 0, totCur = 0, totPnl = 0;
+  matrix.forEach(r => {
+    totCap += r.capital; totCur += r.current; totPnl += r.pnl;
+    html += `<tr>
+      <td>${r.row}</td>
+      <td>${fmtWon(r.capital)}</td>
+      <td>${fmtWon(r.current)}</td>
+      <td class="${colorClass(r.pnl)}">${fmtSignedWon(r.pnl)}</td>
+      <td class="${colorClass(r.pct)}">${fmtPct(r.pct)}</td>
+    </tr>`;
+  });
+  const totPct = totCap ? (totPnl / totCap * 100) : 0;
+  html += `<tr style="border-top:2px solid #4a90e2;">
+    <td><strong>합계</strong></td>
+    <td><strong>${fmtWon(totCap)}</strong></td>
+    <td><strong>${fmtWon(totCur)}</strong></td>
+    <td class="${colorClass(totPnl)}"><strong>${fmtSignedWon(totPnl)}</strong></td>
+    <td class="${colorClass(totPct)}"><strong>${fmtPct(totPct)}</strong></td>
+  </tr></tbody></table>`;
+  wrap.innerHTML = html;
 }
 
 function renderTrades(trades) {

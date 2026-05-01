@@ -652,6 +652,51 @@ def main():
         "IRP": round(irp_info["cagr_pct"], 2),
     }
 
+    # ─── P9: strategy_pnl 저장 (Hybrid / SmartSplit / 안전자산 통합) ───
+    isa_h_init = INITIAL_CAPITAL["ISA"] * 0.55
+    isa_s_init = INITIAL_CAPITAL["ISA"] * 0.45
+    pen_h_init = INITIAL_CAPITAL["Pension"] * 0.75
+    pen_s_init = INITIAL_CAPITAL["Pension"] * 0.25
+    irp_h_init = INITIAL_CAPITAL["IRP"] * 0.70
+    irp_safe_init = INITIAL_CAPITAL["IRP"] * 0.30
+
+    isa_h_now = new_record["ISA_hybrid"]
+    isa_s_now = new_record["ISA_smartsplit"]
+    pen_h_now = new_record["Pension_hybrid"]
+    pen_s_now = new_record["Pension_smartsplit"]
+    irp_h_now = new_record["IRP_hybrid_actual"]
+    irp_safe_now = new_record["IRP_safe_actual"]
+
+    hybrid_init = isa_h_init + pen_h_init + irp_h_init
+    hybrid_now = isa_h_now + pen_h_now + irp_h_now
+    smart_init = isa_s_init + pen_s_init
+    smart_now = isa_s_now + pen_s_now
+
+    def _strategy_block(init, current):
+        pnl = current - init
+        pct = (pnl / init * 100.0) if init else 0.0
+        return {
+            "capital": int(round(init)),
+            "current": int(round(current)),
+            "pnl": int(round(pnl)),
+            "pct": round(pct, 2),
+        }
+
+    new_record["strategy_pnl"] = {
+        "Hybrid":     _strategy_block(hybrid_init, hybrid_now),
+        "SmartSplit": _strategy_block(smart_init, smart_now),
+        "Safety":     _strategy_block(irp_safe_init, irp_safe_now),
+    }
+    # 매트릭스: 6행 (계좌 × 전략)
+    new_record["strategy_matrix"] = [
+        {"row": "ISA Hybrid",     **_strategy_block(isa_h_init, isa_h_now)},
+        {"row": "ISA SmartSplit", **_strategy_block(isa_s_init, isa_s_now)},
+        {"row": "연금 Hybrid",    **_strategy_block(pen_h_init, pen_h_now)},
+        {"row": "연금 SmartSplit", **_strategy_block(pen_s_init, pen_s_now)},
+        {"row": "IRP Hybrid",     **_strategy_block(irp_h_init, irp_h_now)},
+        {"row": "IRP 안전자산",   **_strategy_block(irp_safe_init, irp_safe_now)},
+    ]
+
     # ─── P5: 카나리아 13612W 저장 (BAA: SPY/VWO/VEA/BND) ───
     try:
         import yfinance as _yf

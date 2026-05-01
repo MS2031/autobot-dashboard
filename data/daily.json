@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-01 19:33:53",
+  "last_updated": "2026-05-01 20:56:33",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -620,7 +620,7 @@
       "IRP_safe_actual": 11155121,
       "IRP_safe_signal": 11155121,
       "trades": [],
-      "kis_fetch_at": "2026-05-01T19:33:53",
+      "kis_fetch_at": "2026-05-01T20:56:33",
       "kis_fetch_status": {
         "ISA": "OK",
         "Pension": "OK",
@@ -629,5 +629,5 @@
       "market_closed": true
     }
   ],
-  "last_kis_fetch": "2026-05-01T19:33:53"
+  "last_kis_fetch": "2026-05-01T20:56:33"
 }

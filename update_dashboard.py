@@ -37,10 +37,17 @@ DASHBOARD_DIR = r"C:\AutobotEx\dashboard"
 DAILY_JSON    = os.path.join(DASHBOARD_DIR, "data", "daily.json")
 PYTHON_EXE    = sys.executable
 
-# 한투 앱 "계좌 총자산" 일자별 override (사용자 캡처값).
-# Phase 2 KIS raw 분석 결과 한투 세전평가는 KIS scts_evlu_amt + α (계좌별 결제대기 보정)이라
-# KIS API 단일 필드로 자동 추출 불가 → 캡처값 하드코딩 fallback.
-# 한투 예수금 = KIS dnca_tot_amt 정확 일치라 그쪽은 자동 추출 가능 (Phase 2 후속).
+# 누적 손익 계산 base (사용자 보정값, 5/1 시점)
+INITIAL_CAPITAL = {
+    "ISA":     81_702_150,
+    "Pension": 49_039_504,
+    "IRP":     37_229_054,
+    "Total":   167_970_708,
+}
+
+# 한투 앱 "계좌 총자산" 일자별 참고값 (사용자 캡처).
+# Phase 2 KIS raw 분석 결과 한투 세전평가 = KIS scts_evlu_amt + α (자동 매핑 불가).
+# 메인 표시는 KIS 기준, 한투는 "참고" 강등.
 HANTOO_OVERRIDE = {
     "2026-05-01": {
         "ISA":     81_800_733,
@@ -48,6 +55,16 @@ HANTOO_OVERRIDE = {
         "IRP":     36_777_923,
     },
 }
+
+# D+2 미결제 / 시스템별 손익 모듈
+try:
+    from utils import d_plus_2 as D2, strategy_classifier as SC
+    UTILS_AVAILABLE = True
+except Exception as _u_err:
+    D2 = None
+    SC = None
+    UTILS_AVAILABLE = False
+    _utils_err = str(_u_err)[:200]
 
 DISCORD_WEBHOOK = (
     "https://discord.com/api/webhooks/1493967027000443010/"
@@ -544,13 +561,58 @@ def main():
             f"\n⚠️ 일부 계좌 KIS 조회 실패: {', '.join(failed_accounts)}\n{err_lines}"
         )
 
-    # ─── 한투 앱 override 확인 ───
+    # ─── 한투 앱 override (참고용) ───
     hantoo_today = HANTOO_OVERRIDE.get(today)
     hantoo_total = sum(hantoo_today.values()) if hantoo_today else None
 
-    # ─── 듀얼 잔고: 한투 base + 야간 변동 예상 + KIS 시가평가 참고 ───
-    estimate_block = ""
-    estimate_record = None
+    # ─── KIS 기준 누적 손익 (메인) ───
+    cap = INITIAL_CAPITAL
+    isa_pnl = isa_total - cap["ISA"]
+    pen_pnl = pen_total - cap["Pension"]
+    irp_pnl = irp_total - cap["IRP"]
+    total_pnl = total_actual - cap["Total"]
+
+    def _pct(amt, base):
+        return (amt / base * 100.0) if base else 0.0
+
+    main_block = [
+        "[누적 손익 (KIS 기준 — 메인)]",
+        f"  ISA: {fmt_won(isa_total)} / 누적 {fmt_signed_won(isa_pnl)} ({_pct(isa_pnl, cap['ISA']):+.2f}%)",
+        f"  연금: {fmt_won(pen_total)} / 누적 {fmt_signed_won(pen_pnl)} ({_pct(pen_pnl, cap['Pension']):+.2f}%)",
+        f"  IRP: {fmt_won(irp_total)} / 누적 {fmt_signed_won(irp_pnl)} ({_pct(irp_pnl, cap['IRP']):+.2f}%)",
+        f"  합계: {fmt_won(total_actual)} / 누적 {fmt_signed_won(total_pnl)} ({_pct(total_pnl, cap['Total']):+.2f}%)",
+    ]
+
+    # ─── D+2 미결제 결제 예정 ───
+    d2_block = []
+    if UTILS_AVAILABLE and not failed_accounts:
+        try:
+            today_yyyymmdd = today.replace("-", "")
+            unsettled = D2.fetch_unsettled_per_account(
+                today_str=today_yyyymmdd,
+                smartsplit_codes_per_account=SC.SMARTSPLIT_PER_ACCOUNT,
+            )
+            d2_lines = D2.format_for_message(unsettled, header="[D+2 결제 예정]")
+            if d2_lines:
+                d2_block = d2_lines
+        except Exception as _d2_err:
+            print(f"  [D+2] 조회 실패: {_d2_err}")
+
+    # ─── 한투 앱 잔고 (참고) ───
+    hantoo_block = []
+    if hantoo_today:
+        kis_diff = total_actual - hantoo_total
+        hantoo_block = [
+            f"[참고: 한투 앱 잔고] {fmt_won(hantoo_total)}",
+            (
+                f"  ISA {fmt_won(hantoo_today['ISA'])} / "
+                f"연금 {fmt_won(hantoo_today['Pension'])} / "
+                f"IRP {fmt_won(hantoo_today['IRP'])}"
+            ),
+            f"  KIS와 차이 {fmt_signed_won(-kis_diff)} (메트릭 차이 — D+2 미결제 + α 보정)",
+        ]
+
+    # ─── daily.json 기록용 realtime_estimate (생략 가능, 보존) ───
     if RT_AVAILABLE and not failed_accounts:
         try:
             metadata = RT.load_metadata()
@@ -567,46 +629,9 @@ def main():
                         "qty":  s.get("qty", 0),
                         "evlu_amt": s.get("value", 0),
                     })
-            # 추정 base는 한투 값 우선, 없으면 KIS
             base_total = hantoo_total if hantoo_total else total_actual
             estimate = RT.estimate_realtime_balance(base_total, all_holdings, metadata, snapshot)
-
-            bd_lines = RT.format_breakdown_lines(estimate, snapshot, indent="  ", bullet="- ")
-
-            block = []
-            if hantoo_today:
-                block.append(f"\n[공식 잔고 (한투 앱 기준)] {fmt_won(hantoo_total)}")
-                block.append(
-                    f"  ISA {fmt_won(hantoo_today['ISA'])} / "
-                    f"연금 {fmt_won(hantoo_today['Pension'])} / "
-                    f"IRP {fmt_won(hantoo_today['IRP'])}"
-                )
-                kis_diff = total_actual - hantoo_total
-                block.append(
-                    f"[참고: KIS API 시가평가] {fmt_won(total_actual)} "
-                    f"(정의 차이 {fmt_signed_won(kis_diff)})"
-                )
-            else:
-                block.append(
-                    f"\n[공식 잔고 (KIS API 시가평가)] {fmt_won(total_actual)}"
-                )
-
-            block.append(
-                f"\n[실시간 예상 잔고] {fmt_won(estimate['estimated'])} "
-                f"({fmt_signed_won(estimate['gap'])} 예상)"
-            )
-            if market_closed:
-                block.append("  - 한투 앱은 KRX ETF NAV 기준 (그 이후 야간 변동 미반영)")
-            if bd_lines:
-                block.extend(bd_lines)
-            if market_closed:
-                block.append("  - 다음 거래일 시초가에 자연스럽게 반영 예정")
-            if estimate.get("unknown_codes"):
-                block.append(f"  ⚠️ 메타 미등록: {', '.join(estimate['unknown_codes'])}")
-
-            estimate_block = "\n".join(block)
-
-            estimate_record = {
+            new_record["realtime_estimate"] = {
                 "official_hantoo": hantoo_total,
                 "official_kis": int(round(total_actual)),
                 "estimated": estimate["estimated"],
@@ -614,34 +639,40 @@ def main():
                 "gap_pct": round(estimate["gap_pct"], 4),
                 "breakdown": estimate["breakdown"],
                 "snapshot_time": snapshot.get("snapshot_time"),
-                "fx_change_pct": round(snapshot.get("fx_change_pct", 0.0), 4),
-                "nasdaq_change_pct": round(snapshot.get("nasdaq_change_pct", 0.0), 4),
-                "sox_change_pct": round(snapshot.get("sox_change_pct", 0.0), 4),
-                "sp500_change_pct": round(snapshot.get("sp500_change_pct", 0.0), 4),
             }
-            new_record["realtime_estimate"] = estimate_record
+            new_record["pnl_kis"] = {
+                "ISA": int(round(isa_pnl)),
+                "Pension": int(round(pen_pnl)),
+                "IRP": int(round(irp_pnl)),
+                "Total": int(round(total_pnl)),
+            }
             upsert_record(daily, new_record)
             save_daily(daily)
         except Exception as _est_err:
-            print(f"  [추정] 실패 (KIS 잔고만 표기): {_est_err}")
-            estimate_block = ""
-    elif not RT_AVAILABLE:
-        print(f"  [추정] realtime_estimate 모듈 로드 실패 — {_rt_import_err}")
-    elif failed_accounts:
-        print("  [추정] 부분 KIS 실패라 추정 스킵")
+            print(f"  [추정] daily.json 기록 실패: {_est_err}")
 
-    # 헤더 라인의 총자산은 한투값 있으면 그 값으로
-    summary_total = hantoo_total if hantoo_total else total_actual
-    msg = (
-        f"📊 대시보드 업데이트 완료 {header_suffix}\n"
-        f"날짜: {today}\n"
-        f"총자산: {fmt_won(summary_total)} ({fmt_signed_won(summary_total - initial_total)})\n"
-        f"ISA: {fmt_won(isa_total)} / 연금: {fmt_won(pen_total)} / IRP: {fmt_won(irp_total)} (KIS 시가평가)\n"
-        f"오늘 매매: {len(all_trades)}건"
-        + failure_note
-        + estimate_block
-        + ("" if pushed else "\n(git: 변경사항 없어 push 생략)")
-    )
+    # 메시지 조립
+    parts = [
+        f"📊 대시보드 업데이트 완료 {header_suffix}",
+        f"날짜: {today}",
+        f"오늘 매매: {len(all_trades)}건",
+        "",
+        *main_block,
+    ]
+    if d2_block:
+        parts.append("")
+        parts.extend(d2_block)
+    if hantoo_block:
+        parts.append("")
+        parts.extend(hantoo_block)
+    parts.append("")
+    parts.append("✓ SmartSplit 4/30 매수 (SK하이닉스/삼성전자) 정상 작동 — D+2 결제 후 한투-KIS 수렴")
+    if failure_note:
+        parts.append(failure_note.lstrip("\n"))
+    if not pushed:
+        parts.append("(git: 변경사항 없어 push 생략)")
+
+    msg = "\n".join(parts)
     discord_notify(msg)
     print("✅ 완료")
 

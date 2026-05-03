@@ -395,6 +395,13 @@ def main():
     mode_tag = "(휴장일 NAV 반영)" if market_closed else "(평일)"
     print(f"[{today}] AutobotEx Dashboard 업데이트 시작 {mode_tag}")
 
+    # P12: 휴장일 Discord 발송 정책 (옵션 B)
+    # - 평일은 모든 호출 발송
+    # - 휴장일은 EOD(15:35 이후)만 발송, 인트라데이(10~14)는 daily.json 갱신만
+    _now = datetime.datetime.now()
+    _is_eod = (_now.hour == 15 and _now.minute >= 35) or _now.hour > 15
+    should_notify = (not market_closed) or _is_eod
+
     daily = load_daily()
     existing_record = next(
         (r for r in daily.get("daily_records", []) if r.get("date") == today),
@@ -545,8 +552,11 @@ def main():
                 daily_pct = (daily_amt / prev_total) * 100
                 alert = build_daily_alert(daily_pct, daily_amt, total_actual)
                 if alert:
-                    discord_notify(alert)
-                    print(f"  단계별 알림 전송 (prev={prev_rec.get('date')}): {fmt_pct(daily_pct)}")
+                    if should_notify:
+                        discord_notify(alert)
+                        print(f"  단계별 알림 전송 (prev={prev_rec.get('date')}): {fmt_pct(daily_pct)}")
+                    else:
+                        print(f"  단계별 알림 스킵 (휴장일 인트라데이): {fmt_pct(daily_pct)}")
 
     header_suffix = (
         f"(휴장일 NAV 반영, KIS fetch: {latest_fetch_time})"
@@ -826,8 +836,12 @@ def main():
         parts.append("(git: 변경사항 없어 push 생략)")
 
     msg = "\n".join(parts)
-    discord_notify(msg)
-    print("✅ 완료")
+    if should_notify:
+        discord_notify(msg)
+        print("✅ 완료")
+    else:
+        print("[DashboardUpdate] 휴장일 인트라데이 — Discord 발송 스킵 (daily.json은 갱신됨)")
+        print("✅ 완료")
 
 
 if __name__ == "__main__":

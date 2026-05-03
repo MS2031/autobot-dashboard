@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-03 15:01:12",
+  "last_updated": "2026-05-03 15:42:09",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -859,7 +859,7 @@
       "IRP_safe_actual": 11155121,
       "IRP_safe_signal": 11155121,
       "trades": [],
-      "kis_fetch_at": "2026-05-03T15:00:46",
+      "kis_fetch_at": "2026-05-03T15:41:38",
       "kis_fetch_status": {
         "ISA": "OK",
         "Pension": "OK",
@@ -1035,7 +1035,7 @@
           "other_us_adjustment": 0,
           "irp_lag_adjustment": 0
         },
-        "snapshot_time": "2026-05-03 15:01:10"
+        "snapshot_time": "2026-05-03 15:42:04"
       },
       "pnl_kis": {
         "ISA": 771171,
@@ -1045,5 +1045,5 @@
       }
     }
   ],
-  "last_kis_fetch": "2026-05-03T15:00:46"
+  "last_kis_fetch": "2026-05-03T15:41:38"
 }

@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-03 15:56:32",
+  "last_updated": "2026-05-04 10:01:08",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -1043,7 +1043,269 @@
         "IRP": -45316,
         "Total": 831513
       }
+    },
+    {
+      "date": "2026-05-04",
+      "mode": "공격",
+      "ISA_hybrid": 46196198,
+      "ISA_smartsplit": 37796890,
+      "Pension_hybrid": 37824870,
+      "Pension_smartsplit": 12608290,
+      "IRP_hybrid_actual": 26829761,
+      "IRP_hybrid_signal": 26829761,
+      "IRP_safe_actual": 11498469,
+      "IRP_safe_signal": 11498469,
+      "trades": [
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "463250",
+          "stock_name": "TIGER K방산&우주",
+          "qty": 217,
+          "price": 51271,
+          "amount": 11125807
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "381180",
+          "stock_name": "TIGER 미국필라델피아반도체나스닥",
+          "qty": 6,
+          "price": 40945,
+          "amount": 245670
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "487240",
+          "stock_name": "KODEX AI전력핵심설비",
+          "qty": 17,
+          "price": 55981,
+          "amount": 951677
+        },
+        {
+          "account": "Pension",
+          "strategy": "SmartSplit",
+          "action": "매도",
+          "stock_code": "463250",
+          "stock_name": "TIGER K방산&우주",
+          "qty": 176,
+          "price": 51285,
+          "amount": 9026160
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "487240",
+          "stock_name": "KODEX AI전력핵심설비",
+          "qty": 13,
+          "price": 56077,
+          "amount": 729001
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "381180",
+          "stock_name": "TIGER 미국필라델피아반도체나스닥",
+          "qty": 3,
+          "price": 40945,
+          "amount": 122835
+        },
+        {
+          "account": "Pension",
+          "strategy": "Hybrid",
+          "action": "매도",
+          "stock_code": "466920",
+          "stock_name": "SOL 조선TOP3플러스",
+          "qty": 5,
+          "price": 41450,
+          "amount": 207250
+        }
+      ],
+      "kis_fetch_at": "2026-05-04T10:00:43",
+      "kis_fetch_status": {
+        "ISA": "OK",
+        "Pension": "OK",
+        "IRP": "OK"
+      },
+      "market_closed": false,
+      "bot_modes": {
+        "ISA": "OFFENSE",
+        "Pension": "OFFENSE",
+        "IRP": "OFFENSE"
+      },
+      "cagr": {
+        "Portfolio": 71.51,
+        "ISA": 70.11,
+        "Pension": 82.52,
+        "IRP": 86.77
+      },
+      "strategy_pnl": {
+        "Hybrid": {
+          "capital": 54662169,
+          "current": 57041461,
+          "pnl": 2379292,
+          "pct": 4.35,
+          "cagr": 126.71,
+          "tickers": [
+            "133690",
+            "381180",
+            "487240",
+            "091160",
+            "381180",
+            "445290",
+            "487240"
+          ]
+        },
+        "SmartSplit": {
+          "capital": 31303876,
+          "current": 32832340,
+          "pnl": 1528464,
+          "pct": 4.88,
+          "cagr": 149.88,
+          "tickers": [
+            "000660",
+            "005930",
+            "0091P0",
+            "487240",
+            "0091P0",
+            "091160",
+            "381170",
+            "381180"
+          ]
+        },
+        "Safety": {
+          "capital": 11264000,
+          "current": 11470680,
+          "pnl": 206680,
+          "pct": 1.83,
+          "cagr": 47.76,
+          "tickers": [
+            "0162Z0"
+          ]
+        }
+      },
+      "strategy_matrix": [
+        {
+          "row": "ISA Hybrid",
+          "capital": 20449069,
+          "current": 20802200,
+          "pnl": 353131,
+          "pct": 1.73,
+          "cagr": 38.95,
+          "tickers": [
+            "133690",
+            "381180"
+          ]
+        },
+        {
+          "row": "ISA SmartSplit",
+          "capital": 12541230,
+          "current": 13800540,
+          "pnl": 1259310,
+          "pct": 10.04,
+          "cagr": 528.51,
+          "tickers": [
+            "000660",
+            "005930",
+            "0091P0",
+            "487240"
+          ]
+        },
+        {
+          "row": "연금 Hybrid",
+          "capital": 8376360,
+          "current": 9394770,
+          "pnl": 1018410,
+          "pct": 12.16,
+          "cagr": 1074.62,
+          "tickers": [
+            "487240"
+          ]
+        },
+        {
+          "row": "연금 SmartSplit",
+          "capital": 18762646,
+          "current": 19031800,
+          "pnl": 269154,
+          "pct": 1.43,
+          "cagr": 35.77,
+          "tickers": [
+            "0091P0",
+            "091160",
+            "381170",
+            "381180"
+          ]
+        },
+        {
+          "row": "IRP Hybrid",
+          "capital": 25836740,
+          "current": 26844491,
+          "pnl": 1007751,
+          "pct": 3.9,
+          "cagr": 127.4,
+          "tickers": [
+            "091160",
+            "381180",
+            "445290",
+            "487240"
+          ]
+        },
+        {
+          "row": "IRP 안전자산",
+          "capital": 11264000,
+          "current": 11470680,
+          "pnl": 206680,
+          "pct": 1.83,
+          "cagr": 47.76,
+          "tickers": [
+            "0162Z0"
+          ]
+        },
+        {
+          "row": "현금 (미투입)",
+          "capital": 71408373,
+          "current": 71408373,
+          "pnl": 0,
+          "pct": 0.0,
+          "cagr": 0.0,
+          "tickers": []
+        }
+      ],
+      "canary": {
+        "SPY": 1.7982,
+        "VWO": 1.7337,
+        "VEA": 1.4433,
+        "BND": 0.0848
+      },
+      "realtime_estimate": {
+        "official_hantoo": null,
+        "official_kis": 172754478,
+        "estimated": 173223945,
+        "gap": 469467,
+        "gap_pct": 0.2718,
+        "breakdown": {
+          "fx_adjustment": -107137,
+          "sox_adjustment": 166769,
+          "nasdaq_adjustment": 409835,
+          "sp500_adjustment": 0,
+          "other_us_adjustment": 0,
+          "irp_lag_adjustment": 0
+        },
+        "snapshot_time": "2026-05-04 10:01:07"
+      },
+      "pnl_kis": {
+        "ISA": 2290938,
+        "Pension": 1393656,
+        "IRP": 1099176,
+        "Total": 4783770
+      }
     }
   ],
-  "last_kis_fetch": "2026-05-03T15:56:01"
+  "last_kis_fetch": "2026-05-04T10:00:43"
 }

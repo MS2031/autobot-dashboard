@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutobotEx 자동매매 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+      background: #1a1a2e;
+      color: #e8e8f0;
+      padding: 16px;
+      min-height: 100vh;
+      font-size: 16px;
+    }
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    h2 {
+      font-size: 20px; margin-bottom: 12px; color: #b8b8d0;
+      border-left: 3px solid #4a90e2; padding-left: 12px;
+    }
+    .sub-date { font-size: 14px; color: #8a8aa3; margin-bottom: 24px; }
+    section { margin-bottom: 32px; }
+
+    .grid { display: grid; gap: 16px; }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
+    .card {
+      background: #16213e;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .card .label { font-size: 15px; color: #8a8aa3; margin-bottom: 8px; }
+    .card .value { font-size: 28px; font-weight: 700; }
+    .summary-grid .card .value { font-size: 32px; }
+    .card .row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin: 8px 0; font-size: 15px;
+    }
+    .card .row .k { color: #8a8aa3; }
+    .card .row .v { font-weight: 600; }
+    .card .row .v .sub { color: #8a8aa3; font-weight: 400; margin-left: 6px; }
+
+    .pos { color: #4ade80; }
+    .neg { color: #f87171; }
+    .zero { color: #8a8aa3; }
+    .neutral { color: #e8e8f0; }
+
+    .badge {
+      display: inline-block; padding: 6px 14px; border-radius: 14px;
+      font-size: 16px; font-weight: 700;
+    }
+    .badge-attack { background: #be185d; color: #fff; }
+    .badge-defense { background: #1e40af; color: #fff; }
+
+    .account-summary {
+      margin-top: 12px; padding-top: 12px; border-top: 1px solid #2a3656;
+    }
+    .account-summary .row:first-child { margin-top: 0; }
+    .account-summary .row .v { font-weight: 700; }
+
+    .chart-card { background: #16213e; border-radius: 10px; padding: 20px; }
+    .chart-wrap { position: relative; height: 360px; }
+
+    .account-charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 16px;
+    }
+    .chart-card-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 12px; gap: 12px; flex-wrap: wrap;
+    }
+    .chart-card-header .title {
+      font-size: 17px; font-weight: 700; color: #b8b8d0;
+    }
+    .chart-card-header .stats {
+      font-size: 14px; text-align: right;
+    }
+    .chart-card-header .stats .stat-row { margin: 2px 0; }
+    .chart-card-header .stats .k { color: #8a8aa3; margin-right: 6px; }
+    .chart-card-header .stats .v { font-weight: 700; margin-right: 8px; }
+    .chart-card-header .stats .v:last-child { margin-right: 0; }
+    .chart-wrap-sm { position: relative; height: 280px; }
+
+    .summary-period-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 16px;
+    }
+    .period-range {
+      font-size: 13px; color: #8a8aa3; margin-bottom: 12px;
+    }
+
+    .table-wrap {
+      background: #16213e; border-radius: 10px; padding: 8px;
+      max-height: 480px; overflow: auto;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    table th, table td {
+      font-size: 14px; padding: 12px 10px; text-align: right;
+      border-bottom: 1px solid #2a3656; white-space: nowrap;
+    }
+    th:first-child, td:first-child { text-align: left; }
+    th {
+      color: #8a8aa3; font-weight: 600; background: #1e2a4a;
+      position: sticky; top: 0; z-index: 1;
+    }
+    .col-irp-signal { color: #6b7299; font-style: italic; }
+    .empty { text-align: center; padding: 48px; color: #8a8aa3; font-size: 15px; }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 22px; }
+      h2 { font-size: 17px; }
+      .card .value { font-size: 22px; }
+      .summary-grid .card .value { font-size: 24px; }
+      table th, table td { font-size: 13px; padding: 8px 6px; }
+      .chart-wrap { height: 260px; }
+      .account-charts-grid { grid-template-columns: 1fr; }
+      .summary-period-grid { grid-template-columns: 1fr; }
+      .chart-wrap-sm { height: 240px; }
+      .chart-card-header { flex-direction: column; align-items: flex-start; }
+      .chart-card-header .stats { text-align: left; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <h1>AutobotEx 자동매매 대시보드</h1>
+  <div class="sub-date" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <span id="lastUpdated">로딩 중...</span>
+    <button id="manualRefresh" style="background:#2a3656;color:#e8e8f0;border:1px solid #4a90e2;border-radius:6px;padding:4px 10px;font-size:13px;cursor:pointer;">🔄 새로고침</button>
+    <span id="autoRefreshState" style="font-size:12px;color:#8a8aa3;"></span>
+  </div>
+
+  <section>
+    <h2>전체 요약</h2>
+    <div class="summary-grid grid grid-3">
+      <div class="card"><div class="label">총 자산</div><div class="value neutral" id="totalAsset">-</div></div>
+      <div class="card"><div class="label">일별 수익률</div><div class="value" id="dailyPct">-</div></div>
+      <div class="card"><div class="label">일별 수익금</div><div class="value" id="dailyAmount">-</div></div>
+      <div class="card"><div class="label">누적 수익률</div><div class="value" id="cumPct">-</div></div>
+      <div class="card"><div class="label">누적 수익금</div><div class="value" id="cumAmount">-</div></div>
+      <div class="card"><div class="label">연 환산 (CAGR)</div><div class="value" id="cagrTotal">-</div></div>
+      <div class="card"><div class="label">현재 모드</div><div class="value"><span class="badge" id="modeBadge">-</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>계좌별 현황</h2>
+    <div class="grid grid-3" id="accountCards"></div>
+  </section>
+
+  <section>
+    <h2>전략별 현황 (Hybrid / SmartSplit / 안전자산)</h2>
+    <div class="grid grid-3" id="strategyCards"></div>
+  </section>
+
+  <section>
+    <h2>계좌 × 전략 매트릭스</h2>
+    <div class="table-wrap" id="strategyMatrixWrap"><div class="empty">로딩 중...</div></div>
+  </section>
+
+  <section>
+    <h2>오늘 매매내역</h2>
+    <div class="table-wrap" id="tradesTableWrap"><div class="empty">로딩 중...</div></div>
+  </section>
+
+  <section>
+    <h2>계좌별 누적 수익률</h2>
+    <div class="account-charts-grid">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="title">ISA 누적 수익률</div>
+          <div class="stats" id="isaStats"></div>
+        </div>
+        <div class="chart-wrap-sm"><canvas id="isaChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="title">연금 누적 수익률</div>
+          <div class="stats" id="pensionStats"></div>
+        </div>
+        <div class="chart-wrap-sm"><canvas id="pensionChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="title">IRP 누적 수익률 <span style="font-size:13px; color:#a78bfa; font-weight:500;">📌 월간 리밸런싱 (다음: 2026-06-01)</span></div>
+          <div class="stats" id="irpStats"></div>
+        </div>
+        <div class="chart-wrap-sm"><canvas id="irpChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="title">전체 누적 수익률</div>
+          <div class="stats" id="totalStats"></div>
+        </div>
+        <div class="chart-wrap-sm"><canvas id="totalChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>주간/월간 수익률 요약</h2>
+    <div class="summary-period-grid">
+      <div class="card">
+        <div class="label">주간 수익률 (최근 7거래일)</div>
+        <div class="period-range" id="weeklyPeriod">-</div>
+        <div class="row"><span class="k">수익금</span><span class="v" id="weeklyAmount">-</span></div>
+        <div class="row"><span class="k">수익률</span><span class="v" id="weeklyPct">-</span></div>
+        <div class="account-summary">
+          <div class="row"><span class="k">ISA</span><span class="v" id="weeklyISA">-</span></div>
+          <div class="row"><span class="k">연금</span><span class="v" id="weeklyPension">-</span></div>
+          <div class="row"><span class="k">IRP</span><span class="v" id="weeklyIRP">-</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">월간 수익률 (이번 달 1일~)</div>
+        <div class="period-range" id="monthlyPeriod">-</div>
+        <div class="row"><span class="k">수익금</span><span class="v" id="monthlyAmount">-</span></div>
+        <div class="row"><span class="k">수익률</span><span class="v" id="monthlyPct">-</span></div>
+        <div class="account-summary">
+          <div class="row"><span class="k">ISA</span><span class="v" id="monthlyISA">-</span></div>
+          <div class="row"><span class="k">연금</span><span class="v" id="monthlyPension">-</span></div>
+          <div class="row"><span class="k">IRP</span><span class="v" id="monthlyIRP">-</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>일별 수익금</h2>
+    <div class="table-wrap" id="dailyTableWrap"><div class="empty">로딩 중...</div></div>
+  </section>
+
+  <section>
+    <h2>누적 수익금</h2>
+    <div class="table-wrap" id="cumTableWrap"><div class="empty">로딩 중...</div></div>
+  </section>
+
+  <section>
+    <h2>전략 비교 (Hybrid vs SmartSplit)</h2>
+    <div class="chart-card"><div class="chart-wrap"><canvas id="strategyChart"></canvas></div></div>
+  </section>
+
+  <section>
+    <h2>BAA 카나리아 추세 (SPY/VWO/VEA/BND 13612W)</h2>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="title">카나리아 4종 13612W <span style="font-size:13px; color:#a78bfa; font-weight:500;">📌 다음 IRP 리밸런싱: 2026-06-01</span></div>
+        <div class="stats" id="canaryStats"></div>
+      </div>
+      <div class="chart-wrap"><canvas id="canaryChart"></canvas></div>
+    </div>
+  </section>
+
+<script>
+const fmtWon       = v => '₩' + Math.round(v).toLocaleString('ko-KR');
+const fmtSignedWon = v => v === 0 ? '₩0' : (v > 0 ? '+' : '-') + '₩' + Math.abs(Math.round(v)).toLocaleString('ko-KR');
+const fmtPct       = v => v === 0 ? '0.00%' : (v > 0 ? '+' : '') + v.toFixed(2) + '%';
+const colorClass   = v => v > 0 ? 'pos' : (v < 0 ? 'neg' : 'zero');
+
+const totalActual = r =>
+  r.ISA_hybrid + r.ISA_smartsplit +
+  r.Pension_hybrid + r.Pension_smartsplit +
+  r.IRP_hybrid_actual + r.IRP_safe_actual;
+
+const irpActual = r => r.IRP_hybrid_actual + r.IRP_safe_actual;
+const irpSignal = r => r.IRP_hybrid_signal + r.IRP_safe_signal;
+
+// P3: IRP 시그널 칼럼 제거 — 월간 리밸런싱 계좌이므로 일별 시그널 무의미
+const colsOf = r => [
+  r.ISA_hybrid,
+  r.ISA_smartsplit,
+  r.Pension_hybrid,
+  r.Pension_smartsplit,
+  irpActual(r)
+];
+const initialColsOf = accs => [
+  (accs.ISA?.initial || 0) * (accs.ISA?.hybrid_weight || 0),
+  (accs.ISA?.initial || 0) * (accs.ISA?.smartsplit_weight || 0),
+  (accs.Pension?.initial || 0) * (accs.Pension?.hybrid_weight || 0),
+  (accs.Pension?.initial || 0) * (accs.Pension?.smartsplit_weight || 0),
+  (accs.IRP?.initial || 0)
+];
+
+// ─────────── 모드 전환 마커 (수직선 annotation)
+function buildModeAnnotations(records) {
+  const ann = {};
+  for (let i = 1; i < records.length; i++) {
+    const prev = records[i - 1].mode;
+    const cur  = records[i].mode;
+    if (prev !== cur) {
+      ann['mode' + i] = {
+        type: 'line',
+        xMin: records[i].date,
+        xMax: records[i].date,
+        borderColor: '#f87171',
+        borderDash: [6, 3],
+        borderWidth: 2,
+        label: {
+          display: true,
+          content: prev + '→' + cur,
+          position: 'start',
+          color: '#f87171',
+          backgroundColor: 'rgba(22, 33, 62, 0.85)',
+          padding: 4,
+          font: { size: 11, weight: 'bold' }
+        }
+      };
+    }
+  }
+  return ann;
+}
+
+async function load() {
+  let data;
+  try {
+    const res = await fetch('data/daily.json?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    data = await res.json();
+  } catch (e) {
+    document.body.innerHTML =
+      '<h1>AutobotEx 자동매매 대시보드</h1>' +
+      '<div class="empty">data/daily.json을 불러올 수 없습니다.<br>' +
+      'HTTP 서버로 열어주세요 (file:// 프로토콜은 fetch 차단).<br>' +
+      '<small>오류: ' + e.message + '</small></div>';
+    return;
+  }
+
+  const records = (data.daily_records || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const accs = data.accounts || {};
+  const initialTotal =
+    (accs.ISA?.initial || 0) +
+    (accs.Pension?.initial || 0) +
+    (accs.IRP?.initial || 0);
+
+  document.getElementById('lastUpdated').textContent =
+    '마지막 업데이트: ' + (data.last_updated || '-');
+
+  const mode = data.mode || '-';
+  const badge = document.getElementById('modeBadge');
+  badge.textContent = mode;
+  badge.className = 'badge ' + (mode === '공격' ? 'badge-attack' : 'badge-defense');
+
+  if (records.length === 0) {
+    document.getElementById('totalAsset').textContent = fmtWon(initialTotal);
+    ['dailyPct', 'dailyAmount', 'cumPct', 'cumAmount'].forEach(id => {
+      const el = document.getElementById(id);
+      el.textContent = '데이터 수집 중...';
+      el.className = 'value zero';
+    });
+    renderAccountCards(accs, null);
+    renderTrades([]);
+    renderPeriodSummary([]);
+    document.getElementById('dailyTableWrap').innerHTML = '<div class="empty">데이터 수집 중...</div>';
+    document.getElementById('cumTableWrap').innerHTML   = '<div class="empty">데이터 수집 중...</div>';
+    renderStrategyChart([], [], [], {});
+    renderAccountCharts([], accs, initialTotal, {});
+    return;
+  }
+
+  const last = records[records.length - 1];
+  const prev = records.length > 1 ? records[records.length - 2] : null;
+  const todayTotal = totalActual(last);
+
+  let dailyAmount = 0, dailyPct = 0;
+  if (prev) {
+    const prevTotal = totalActual(prev);
+    dailyAmount = todayTotal - prevTotal;
+    dailyPct = prevTotal ? (dailyAmount / prevTotal) * 100 : 0;
+  }
+  const cumAmount = todayTotal - initialTotal;
+  const cumPct = initialTotal ? (cumAmount / initialTotal) * 100 : 0;
+
+  document.getElementById('totalAsset').textContent = fmtWon(todayTotal);
+  setSummary('dailyPct',    fmtPct(dailyPct),         dailyPct);
+  setSummary('dailyAmount', fmtSignedWon(dailyAmount), dailyAmount);
+  setSummary('cumPct',      fmtPct(cumPct),           cumPct);
+  setSummary('cumAmount',   fmtSignedWon(cumAmount),  cumAmount);
+
+  // P2/P7: CAGR 카드 — last에 cagr 없으면 records 역순 순회로 가장 최근 cagr 보유 레코드 사용
+  function findLatestCagr(records, key) {
+    for (let i = records.length - 1; i >= 0; i--) {
+      const c = records[i].cagr;
+      if (c && typeof c[key] === 'number') return c[key];
+    }
+    return null;
+  }
+  const cagrPortfolio = findLatestCagr(records, 'Portfolio');
+  console.log('[CAGR debug] last.cagr=', last.cagr, 'fallback Portfolio=', cagrPortfolio);
+  setSummary('cagrTotal',
+    cagrPortfolio == null ? '-' : (cagrPortfolio >= 0 ? '+' : '') + cagrPortfolio.toFixed(2) + '%',
+    cagrPortfolio || 0);
+  // records 데이터 자체를 다른 함수에서도 쓰도록 윈도우 노출 (디버그용)
+  window._dashRecords = records;
+  window._dashLatestCagr = findLatestCagr;
+
+  renderAccountCards(accs, last);
+  renderStrategyCards(last);
+  renderStrategyMatrix(last);
+  renderTrades(last.trades || []);
+  renderPeriodSummary(records);
+  renderProfitTable('dailyTableWrap', records, accs, 'daily');
+  renderProfitTable('cumTableWrap',   records, accs, 'cumulative');
+
+  const labels = records.map(r => r.date);
+  const annotations = buildModeAnnotations(records);
+
+  const isaInit = accs.ISA?.initial || 0;
+  const pensionInit = accs.Pension?.initial || 0;
+  const irpInit = accs.IRP?.initial || 0;
+  const hybridInit =
+    isaInit * (accs.ISA?.hybrid_weight || 0) +
+    pensionInit * (accs.Pension?.hybrid_weight || 0) +
+    irpInit * (accs.IRP?.hybrid_weight || 0);
+  const smartInit =
+    isaInit * (accs.ISA?.smartsplit_weight || 0) +
+    pensionInit * (accs.Pension?.smartsplit_weight || 0);
+
+  const hybridActualPct = records.map(r => {
+    const v = r.ISA_hybrid + r.Pension_hybrid + r.IRP_hybrid_actual;
+    return hybridInit ? ((v - hybridInit) / hybridInit) * 100 : 0;
+  });
+  const smartPct = records.map(r => {
+    const v = r.ISA_smartsplit + r.Pension_smartsplit;
+    return smartInit ? ((v - smartInit) / smartInit) * 100 : 0;
+  });
+  renderStrategyChart(labels, hybridActualPct, smartPct, annotations);
+
+  renderAccountCharts(records, accs, initialTotal, annotations);
+  renderCanaryChart(records, annotations);
+}
+
+// P5: 카나리아 4종 13612W 추세 차트 + 현재값 카드
+let canaryChart = null;
+function renderCanaryChart(records, annotations) {
+  const labels = records.map(r => r.date);
+  const tickers = ['SPY', 'VWO', 'VEA', 'BND'];
+  const colors = { SPY: '#4ade80', VWO: '#60a5fa', VEA: '#fbbf24', BND: '#f87171' };
+  const datasets = tickers.map(tk => ({
+    label: tk,
+    data: records.map(r => (r.canary && typeof r.canary[tk] === 'number') ? r.canary[tk] : null),
+    borderColor: colors[tk],
+    backgroundColor: 'transparent',
+    tension: 0.3,
+    fill: false,
+    borderWidth: tk === 'BND' ? 3 : 2,
+    spanGaps: true,
+  }));
+
+  // 현재값 카드 — 마지막 record의 canary
+  const last = records.length ? records[records.length - 1] : null;
+  const cur = (last && last.canary) ? last.canary : {};
+  const parts = tickers.map(tk => {
+    const v = (typeof cur[tk] === 'number') ? cur[tk] : null;
+    if (v == null) return `${tk}: -`;
+    let badge = '';
+    if (Math.abs(v) <= 0.1) badge = ' ⚠️ 임계';
+    return `${tk} <span class="${colorClass(v)}">${(v >= 0 ? '+' : '') + v.toFixed(3)}</span>${badge}`;
+  });
+  const statsEl = document.getElementById('canaryStats');
+  if (statsEl) statsEl.innerHTML = parts.join(' | ');
+
+  // y=0 임계선 annotation 추가
+  const ann = Object.assign({}, annotations || {});
+  ann.canaryZero = {
+    type: 'line', yMin: 0, yMax: 0,
+    borderColor: '#f87171', borderDash: [6, 3], borderWidth: 2,
+    label: { display: true, content: 'BAA 임계 (음수=방어)', position: 'end',
+             color: '#f87171', backgroundColor: 'rgba(22, 33, 62, 0.85)',
+             padding: 4, font: { size: 11, weight: 'bold' } }
+  };
+
+  const ctx = document.getElementById('canaryChart').getContext('2d');
+  if (canaryChart) canaryChart.destroy();
+  const opts = makeOpts(true, ann);
+  // y축 callback을 .toFixed(2)로 (퍼센트 아님, 13612W 점수)
+  opts.scales = {
+    x: { ticks: { color: '#8a8aa3', font: { size: 12 } }, grid: { color: '#2a3656' } },
+    y: { ticks: { color: '#8a8aa3', font: { size: 12 }, callback: v => v.toFixed(2) }, grid: { color: '#2a3656' } }
+  };
+  opts.plugins.tooltip = { callbacks: { label: c => c.dataset.label + ': ' + (c.parsed.y == null ? '-' : c.parsed.y.toFixed(3)) } };
+  canaryChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: opts });
+}
+
+function setSummary(id, text, raw) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'value ' + colorClass(raw);
+}
+
+function renderAccountCards(accs, last) {
+  const wrap = document.getElementById('accountCards');
+  wrap.innerHTML = '';
+  const cards = [
+    { key: 'ISA',     label: 'ISA',  subs: [
+        { name: 'Hybrid',     field: 'ISA_hybrid',     weightKey: 'hybrid_weight'     },
+        { name: 'SmartSplit', field: 'ISA_smartsplit', weightKey: 'smartsplit_weight' } ] },
+    { key: 'Pension', label: '연금', subs: [
+        { name: 'Hybrid',     field: 'Pension_hybrid',     weightKey: 'hybrid_weight'     },
+        { name: 'SmartSplit', field: 'Pension_smartsplit', weightKey: 'smartsplit_weight' } ] },
+    { key: 'IRP',     label: 'IRP',  subs: [
+        { name: 'Hybrid',   field: 'IRP_hybrid_actual', weightKey: 'hybrid_weight' },
+        { name: '안전자산', field: 'IRP_safe_actual',   weightKey: 'safe_weight'   } ] }
+  ];
+  cards.forEach(c => {
+    const a = accs[c.key] || {};
+    let body = `<div class="label">${c.label}</div>`;
+    if (last) {
+      const total = c.subs.reduce((s, x) => s + (last[x.field] || 0), 0);
+      body += `<div class="value neutral">${fmtWon(total)}</div>`;
+      c.subs.forEach(x => {
+        const v = last[x.field] || 0;
+        const init = (a.initial || 0) * (a[x.weightKey] || 0);
+        const profit = v - init;
+        const pct = init > 0 ? (profit / init) * 100 : 0;
+        body += `<div class="row"><span class="k">${x.name}</span>` +
+                `<span class="v ${colorClass(pct)}">${fmtPct(pct)}` +
+                `<span class="sub">${fmtSignedWon(profit)}</span></span></div>`;
+      });
+      const accountInit = a.initial || 0;
+      const accountProfit = total - accountInit;
+      const accountPct = accountInit ? (accountProfit / accountInit) * 100 : 0;
+      let summary = '';
+      summary += `<div class="row"><span class="k">계좌 수익률</span>` +
+                 `<span class="v ${colorClass(accountPct)}">${fmtPct(accountPct)}</span></div>`;
+      // P2/P8: 계좌별 CAGR 라인 — 역순 순회 안전망 (옛날 레코드 cagr 없을 수 있음)
+      let accCagr = null;
+      if (window._dashLatestCagr && window._dashRecords) {
+        accCagr = window._dashLatestCagr(window._dashRecords, c.key);
+      } else if (last.cagr && typeof last.cagr[c.key] === 'number') {
+        accCagr = last.cagr[c.key];
+      }
+      if (accCagr != null) {
+        summary += `<div class="row"><span class="k">CAGR</span>` +
+                   `<span class="v ${colorClass(accCagr)}">${(accCagr >= 0 ? '+' : '') + accCagr.toFixed(2)}%</span></div>`;
+      }
+      summary += `<div class="row"><span class="k">계좌 수익금</span>` +
+                 `<span class="v ${colorClass(accountProfit)}">${fmtSignedWon(accountProfit)}</span></div>`;
+      // P3: IRP 카드에서 "실제 vs 시그널" 라인 제거. 월간 잠금 배지로 대체.
+      if (c.key === 'IRP') {
+        summary += `<div class="row"><span class="k">전략</span>` +
+                   `<span class="v" style="font-size:13px; color:#a78bfa;">📌 월간 리밸런싱 (다음: 2026-06-01)</span></div>`;
+      }
+      body += `<div class="account-summary">${summary}</div>`;
+    } else {
+      body += `<div class="value neutral">${fmtWon(a.initial || 0)}</div>` +
+              `<div class="row"><span class="k">상태</span><span class="v">데이터 수집 중</span></div>`;
+    }
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = body;
+    wrap.appendChild(el);
+  });
+}
+
+// P9: 전략별 카드 (Hybrid / SmartSplit / 안전자산)
+function renderStrategyCards(last) {
+  const wrap = document.getElementById('strategyCards');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const sp = (last && last.strategy_pnl) || {};
+  const items = [
+    { key: 'Hybrid',     label: 'Hybrid (BAA)',    color: '#4ade80' },
+    { key: 'SmartSplit', label: 'SmartSplit',       color: '#60a5fa' },
+    { key: 'Safety',     label: '안전자산 (IRP 30%)', color: '#a78bfa' },
+  ];
+  items.forEach(it => {
+    const d = sp[it.key];
+    let body = `<div class="label" style="color:${it.color};">${it.label}</div>`;
+    if (!d) {
+      body += `<div class="value neutral">데이터 수집 중</div>`;
+    } else {
+      body += `<div class="value neutral">${fmtWon(d.current)}</div>`;
+      body += `<div class="row"><span class="k">원금</span>` +
+              `<span class="v neutral">${fmtWon(d.capital)}</span></div>`;
+      body += `<div class="row"><span class="k">누적 수익률</span>` +
+              `<span class="v ${colorClass(d.pct)}">${fmtPct(d.pct)}</span></div>`;
+      body += `<div class="row"><span class="k">누적 수익금</span>` +
+              `<span class="v ${colorClass(d.pnl)}">${fmtSignedWon(d.pnl)}</span></div>`;
+      // P10: CAGR 라인 추가
+      if (typeof d.cagr === 'number') {
+        body += `<div class="row"><span class="k">CAGR</span>` +
+                `<span class="v ${colorClass(d.cagr)}">${(d.cagr >= 0 ? '+' : '') + d.cagr.toFixed(2)}%</span></div>`;
+      }
+    }
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = body;
+    wrap.appendChild(el);
+  });
+}
+
+// P9: 계좌 × 전략 매트릭스 (6행 + 합계)
+function renderStrategyMatrix(last) {
+  const wrap = document.getElementById('strategyMatrixWrap');
+  if (!wrap) return;
+  const matrix = (last && last.strategy_matrix) || [];
+  if (!matrix.length) {
+    wrap.innerHTML = '<div class="empty">데이터 수집 중...</div>';
+    return;
+  }
+  let html = `<table>
+    <thead><tr>
+      <th>계좌 × 전략</th>
+      <th title="해당 전략 종목들의 매입금액 합계 (현금 행은 보유 현금)">매입</th>
+      <th title="현재 평가금액">평가</th>
+      <th>손익</th>
+      <th>수익률</th>
+      <th>CAGR</th>
+    </tr></thead><tbody>`;
+  let totCap = 0, totCur = 0, totPnl = 0;
+  matrix.forEach(r => {
+    totCap += r.capital; totCur += r.current; totPnl += r.pnl;
+    const cagrCell = (typeof r.cagr === 'number')
+      ? `<td class="${colorClass(r.cagr)}">${(r.cagr >= 0 ? '+' : '') + r.cagr.toFixed(2)}%</td>`
+      : `<td>-</td>`;
+    // P11: tickers 툴팁 (마우스 오버 시 보유 종목 코드 표시)
+    const tickersTitle = (r.tickers && r.tickers.length)
+      ? ` title="보유 ${r.tickers.length}종: ${r.tickers.join(', ')}"`
+      : '';
+    html += `<tr${tickersTitle}>
+      <td>${r.row}</td>
+      <td>${fmtWon(r.capital)}</td>
+      <td>${fmtWon(r.current)}</td>
+      <td class="${colorClass(r.pnl)}">${fmtSignedWon(r.pnl)}</td>
+      <td class="${colorClass(r.pct)}">${fmtPct(r.pct)}</td>
+      ${cagrCell}
+    </tr>`;
+  });
+  const totPct = totCap ? (totPnl / totCap * 100) : 0;
+  // 합계 CAGR: Portfolio 기준 (last.cagr.Portfolio가 매트릭스 합과 같은 의미)
+  const totCagr = (last && last.cagr && typeof last.cagr.Portfolio === 'number') ? last.cagr.Portfolio : 0;
+  html += `<tr style="border-top:2px solid #4a90e2;">
+    <td><strong>합계</strong></td>
+    <td><strong>${fmtWon(totCap)}</strong></td>
+    <td><strong>${fmtWon(totCur)}</strong></td>
+    <td class="${colorClass(totPnl)}"><strong>${fmtSignedWon(totPnl)}</strong></td>
+    <td class="${colorClass(totPct)}"><strong>${fmtPct(totPct)}</strong></td>
+    <td class="${colorClass(totCagr)}"><strong>${(totCagr >= 0 ? '+' : '') + totCagr.toFixed(2)}%</strong></td>
+  </tr></tbody></table>`;
+  wrap.innerHTML = html;
+}
+
+function renderTrades(trades) {
+  const wrap = document.getElementById('tradesTableWrap');
+  if (!trades || trades.length === 0) {
+    wrap.innerHTML = '<div class="empty">오늘 매매 없음</div>';
+    return;
+  }
+  let html = `<table>
+    <thead><tr>
+      <th>계좌</th><th>전략</th><th>매수/매도</th>
+      <th>종목코드</th><th>종목명</th>
+      <th>수량</th><th>단가</th><th>금액</th>
+    </tr></thead><tbody>`;
+  trades.forEach(t => {
+    const cls = t.action === '매수' ? 'pos' : 'neg';
+    const qty = (t.qty || 0).toLocaleString('ko-KR');
+    html += `<tr>
+      <td>${t.account || ''}</td>
+      <td>${t.strategy || ''}</td>
+      <td class="${cls}"><strong>${t.action || ''}</strong></td>
+      <td>${t.stock_code || ''}</td>
+      <td>${t.stock_name || ''}</td>
+      <td>${qty}</td>
+      <td>${fmtWon(t.price || 0)}</td>
+      <td>${fmtWon(t.amount || 0)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+// ─────────── 주간/월간 요약
+function periodAccountPct(records, accountKey) {
+  if (records.length < 2) return null;
+  const first = records[0];
+  const last  = records[records.length - 1];
+  const get = (r, k) => {
+    if (k === 'ISA')     return r.ISA_hybrid + r.ISA_smartsplit;
+    if (k === 'Pension') return r.Pension_hybrid + r.Pension_smartsplit;
+    return r.IRP_hybrid_actual + r.IRP_safe_actual;
+  };
+  const a = get(first, accountKey), b = get(last, accountKey);
+  return a > 0 ? ((b - a) / a) * 100 : 0;
+}
+
+function setStatRow(id, text, raw) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'v ' + (raw == null ? 'zero' : colorClass(raw));
+}
+
+function fillPeriodCard(prefix, records) {
+  const periodEl = document.getElementById(prefix + 'Period');
+  if (records.length < 2) {
+    periodEl.textContent = records.length === 1 ? records[0].date + ' (단일)' : '데이터 부족';
+    ['Amount', 'Pct', 'ISA', 'Pension', 'IRP'].forEach(s => {
+      setStatRow(prefix + s, '데이터 수집 중...', null);
+    });
+    return;
+  }
+  const first = records[0];
+  const last  = records[records.length - 1];
+  const startTotal = totalActual(first);
+  const endTotal   = totalActual(last);
+  const amount     = endTotal - startTotal;
+  const pct        = startTotal > 0 ? (amount / startTotal) * 100 : 0;
+
+  periodEl.textContent = first.date + ' ~ ' + last.date;
+  setStatRow(prefix + 'Amount', fmtSignedWon(amount), amount);
+  setStatRow(prefix + 'Pct',    fmtPct(pct),          pct);
+
+  ['ISA', 'Pension', 'IRP'].forEach(k => {
+    const p = periodAccountPct(records, k);
+    setStatRow(prefix + k, fmtPct(p == null ? 0 : p), p);
+  });
+}
+
+function renderPeriodSummary(records) {
+  const weekly = records.slice(-7);
+  const monthPrefix = (records.length ? records[records.length - 1].date : '').slice(0, 7);
+  const monthly = monthPrefix
+    ? records.filter(r => (r.date || '').startsWith(monthPrefix))
+    : [];
+  fillPeriodCard('weekly', weekly);
+  fillPeriodCard('monthly', monthly);
+}
+
+function renderProfitTable(wrapId, records, accs, mode) {
+  const initials = initialColsOf(accs);
+  const initialTotal =
+    (accs.ISA?.initial || 0) +
+    (accs.Pension?.initial || 0) +
+    (accs.IRP?.initial || 0);
+
+  const rows = records.map((r, i) => {
+    const cur = colsOf(r);
+    if (mode === 'cumulative') {
+      const profitCols = cur.map((v, j) => v - initials[j]);
+      const profitTotal = totalActual(r) - initialTotal;
+      return { date: r.date, cols: profitCols, total: profitTotal };
+    } else {
+      if (i === 0) {
+        return { date: r.date, cols: [0,0,0,0,0], total: 0 };
+      }
+      const prev = records[i - 1];
+      const prv = colsOf(prev);
+      const profitCols = cur.map((v, j) => v - prv[j]);
+      const profitTotal = totalActual(r) - totalActual(prev);
+      return { date: r.date, cols: profitCols, total: profitTotal };
+    }
+  });
+
+  rows.sort((a, b) => b.date.localeCompare(a.date));
+
+  // P3: IRP 시그널 칼럼 제거 — 월간 리밸런싱 계좌
+  let html = `<table>
+    <thead><tr>
+      <th>날짜</th>
+      <th>ISA Hybrid</th>
+      <th>ISA Smart</th>
+      <th>연금 Hybrid</th>
+      <th>연금 Smart</th>
+      <th>IRP</th>
+      <th>합계</th>
+    </tr></thead><tbody>`;
+  rows.forEach(row => {
+    html += `<tr><td>${row.date}</td>`;
+    row.cols.forEach(v => {
+      html += `<td class="${colorClass(v)}">${fmtSignedWon(v)}</td>`;
+    });
+    html += `<td class="${colorClass(row.total)}"><strong>${fmtSignedWon(row.total)}</strong></td>`;
+    html += `</tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById(wrapId).innerHTML = html;
+}
+
+const chartOpts = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: true, labels: { color: '#e8e8f0', font: { size: 14 } } },
+    tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + '%' } }
+  },
+  scales: {
+    x: { ticks: { color: '#8a8aa3', font: { size: 12 } }, grid: { color: '#2a3656' } },
+    y: { ticks: { color: '#8a8aa3', font: { size: 12 }, callback: v => v.toFixed(1) + '%' }, grid: { color: '#2a3656' } }
+  }
+};
+
+function makeOpts(showLegend, annotations) {
+  return {
+    ...chartOpts,
+    plugins: {
+      ...chartOpts.plugins,
+      legend: { display: showLegend, labels: { color: '#e8e8f0', font: { size: 14 } } },
+      annotation: { annotations: annotations || {} }
+    }
+  };
+}
+
+let strategyChart = null;
+const accountChartInstances = {};
+
+function renderStrategyChart(labels, hybridActual, smart, annotations) {
+  const ctx = document.getElementById('strategyChart').getContext('2d');
+  if (strategyChart) strategyChart.destroy();
+  strategyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Hybrid',     data: hybridActual,
+          borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.10)',
+          tension: 0.3, fill: false, borderWidth: 2.5 },
+        { label: 'SmartSplit', data: smart,
+          borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.10)',
+          tension: 0.3, fill: false, borderWidth: 2.5 }
+      ]
+    },
+    options: makeOpts(true, annotations)
+  });
+}
+
+function drawAccountChart(canvasId, labels, datasets, showLegend, annotations) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if (accountChartInstances[canvasId]) accountChartInstances[canvasId].destroy();
+  accountChartInstances[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: makeOpts(showLegend, annotations)
+  });
+}
+
+function buildStats(rows) {
+  return rows.map(r => {
+    if (r.kind === 'amount') {
+      return `<div class="stat-row"><span class="k">${r.label}</span>` +
+             `<span class="v ${colorClass(r.value)}">${fmtSignedWon(r.value)}</span></div>`;
+    }
+    if (r.kind === 'pct') {
+      return `<div class="stat-row"><span class="k">${r.label}</span>` +
+             `<span class="v ${colorClass(r.value)}">${fmtPct(r.value)}</span></div>`;
+    }
+    if (r.kind === 'pair') {
+      return `<div class="stat-row"><span class="k">${r.label}</span>` +
+             `<span class="v ${colorClass(r.amount)}">${fmtSignedWon(r.amount)}</span>` +
+             `<span class="v ${colorClass(r.pct)}">${fmtPct(r.pct)}</span></div>`;
+    }
+    return '';
+  }).join('');
+}
+
+function renderAccountCharts(records, accs, initialTotal, annotations) {
+  const ann = annotations || {};
+  const isaInit = accs.ISA?.initial || 0;
+  const pensionInit = accs.Pension?.initial || 0;
+  const irpInit = accs.IRP?.initial || 0;
+  const labels = records.map(r => r.date);
+
+  if (records.length === 0) {
+    ['isaStats', 'pensionStats', 'irpStats', 'totalStats'].forEach(id => {
+      document.getElementById(id).innerHTML = '<span class="zero">데이터 수집 중</span>';
+    });
+    drawAccountChart('isaChart',     labels, [{ label: 'ISA',  data: [], borderColor: '#fbbf24' }], false, ann);
+    drawAccountChart('pensionChart', labels, [{ label: '연금', data: [], borderColor: '#a78bfa' }], false, ann);
+    drawAccountChart('irpChart',     labels, [{ label: 'IRP',  data: [], borderColor: '#fb923c' }], false, ann);
+    drawAccountChart('totalChart',   labels, [{ label: '전체', data: [], borderColor: '#e8e8f0' }], false, ann);
+    return;
+  }
+
+  const last = records[records.length - 1];
+
+  const isaSeries = records.map(r =>
+    isaInit ? (((r.ISA_hybrid + r.ISA_smartsplit) - isaInit) / isaInit) * 100 : 0);
+  const isaProfit = (last.ISA_hybrid + last.ISA_smartsplit) - isaInit;
+  const isaPct = isaInit ? (isaProfit / isaInit) * 100 : 0;
+  document.getElementById('isaStats').innerHTML = buildStats([
+    { kind: 'amount', label: '누적 수익금', value: isaProfit },
+    { kind: 'pct',    label: '누적 수익률', value: isaPct }
+  ]);
+  drawAccountChart('isaChart', labels, [
+    { label: 'ISA', data: isaSeries,
+      borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.10)',
+      tension: 0.3, fill: false, borderWidth: 2.5 }
+  ], false, ann);
+
+  const pensionSeries = records.map(r =>
+    pensionInit ? (((r.Pension_hybrid + r.Pension_smartsplit) - pensionInit) / pensionInit) * 100 : 0);
+  const pensionProfit = (last.Pension_hybrid + last.Pension_smartsplit) - pensionInit;
+  const pensionPct = pensionInit ? (pensionProfit / pensionInit) * 100 : 0;
+  document.getElementById('pensionStats').innerHTML = buildStats([
+    { kind: 'amount', label: '누적 수익금', value: pensionProfit },
+    { kind: 'pct',    label: '누적 수익률', value: pensionPct }
+  ]);
+  drawAccountChart('pensionChart', labels, [
+    { label: '연금', data: pensionSeries,
+      borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.10)',
+      tension: 0.3, fill: false, borderWidth: 2.5 }
+  ], false, ann);
+
+  // P3: IRP 차트 단순화 — 시그널 라인 제거, 단일 실제 라인만 표시 (월간 리밸런싱 계좌)
+  const irpActSeries = records.map(r =>
+    irpInit ? ((irpActual(r) - irpInit) / irpInit) * 100 : 0);
+  const irpActProfit = irpActual(last) - irpInit;
+  const irpActPct = irpInit ? (irpActProfit / irpInit) * 100 : 0;
+  document.getElementById('irpStats').innerHTML = buildStats([
+    { kind: 'amount', label: '누적 수익금', value: irpActProfit },
+    { kind: 'pct',    label: '누적 수익률', value: irpActPct }
+  ]);
+  drawAccountChart('irpChart', labels, [
+    { label: 'IRP', data: irpActSeries,
+      borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.10)',
+      tension: 0.3, fill: false, borderWidth: 2.5 }
+  ], false, ann);
+
+  const totalSeries = records.map(r =>
+    initialTotal ? ((totalActual(r) - initialTotal) / initialTotal) * 100 : 0);
+  const totalProfit = totalActual(last) - initialTotal;
+  const totalPct = initialTotal ? (totalProfit / initialTotal) * 100 : 0;
+  document.getElementById('totalStats').innerHTML = buildStats([
+    { kind: 'amount', label: '총 누적 수익금', value: totalProfit },
+    { kind: 'pct',    label: '총 누적 수익률', value: totalPct }
+  ]);
+  drawAccountChart('totalChart', labels, [
+    { label: '전체', data: totalSeries,
+      borderColor: '#e8e8f0', backgroundColor: 'rgba(232,232,240,0.10)',
+      tension: 0.3, fill: false, borderWidth: 3 }
+  ], false, ann);
+}
+
+load();
+
+// ─────────────────────────────────────────────
+// 자동 reload (Phase 3 추가, 2026-05-04)
+// 평일 09:00 ~ 15:40 KST 매 60초마다 daily.json 재조회
+// 그 외 시간에는 정지 (서버 부하 / 무의미한 새로고침 방지)
+// ─────────────────────────────────────────────
+(function setupAutoReload() {
+  const REFRESH_MS = 60 * 1000;
+  function isAutoRefreshActive() {
+    const now = new Date();
+    const day = now.getDay();
+    if (day === 0 || day === 6) return false;  // 일/토
+    const mins = now.getHours() * 60 + now.getMinutes();
+    return mins >= 9 * 60 && mins <= 15 * 60 + 40;
+  }
+  function tick() {
+    const stateEl = document.getElementById('autoRefreshState');
+    if (isAutoRefreshActive()) {
+      load();
+      if (stateEl) stateEl.textContent = '자동 새로고침: 활성 (60초)';
+    } else {
+      if (stateEl) stateEl.textContent = '자동 새로고침: 비활성 (장 외 시간)';
+    }
+  }
+  tick();
+  setInterval(tick, REFRESH_MS);
+
+  const btn = document.getElementById('manualRefresh');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      btn.textContent = '⏳ 새로고침 중...';
+      btn.disabled = true;
+      load().finally(() => {
+        btn.textContent = '🔄 새로고침';
+        btn.disabled = false;
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>

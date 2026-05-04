@@ -151,8 +151,7 @@ out = {
         {"code": s.get("StockCode"), "name": s.get("StockName"),
          "value": f(s.get("StockNowMoney")),
          "pchs": f(s.get("StockOriMoney")),
-         "qty": i(s.get("StockAmt")),
-         "avg_price": f(s.get("StockAvgPrice"))}
+         "qty": i(s.get("StockAmt"))}
         for s in stocks if isinstance(s, dict)
     ],
 }
@@ -661,31 +660,19 @@ def main():
     }
 
     # ─── P11: 종목별 실분류 기반 strategy_pnl + strategy_matrix ───
-    # 2026-05-04 23:30: split_account_by_strategy_v2 — SmartSplit JSON 차수 데이터로 SS/Hy 분리
+    # KIS API stocks 리스트를 split_account_by_strategy 형식으로 정규화
     def _normalize_holdings(account_key):
         r = results.get(account_key)
         if not r:
             return []
         return [
-            {"ticker": s.get("code"),
-             "amt": int(s.get("qty", 0) or 0),
-             "avg_price": float(s.get("avg_price", 0) or 0),
-             "pchs_amt": s.get("pchs", 0),
-             "evlu_amt": s.get("value", 0)}
+            {"ticker": s.get("code"), "pchs_amt": s.get("pchs", 0), "evlu_amt": s.get("value", 0)}
             for s in r["balance"].get("stocks", []) or []
         ]
 
-    # SmartSplit JSON 캐시 무효화 (재실행 시 최신 데이터)
-    SC._SS_CACHE = {}
-    isa_split = SC.split_account_by_strategy_v2("ISA", _normalize_holdings("ISA"))
-    pen_split = SC.split_account_by_strategy_v2("Pension", _normalize_holdings("Pension"))
-    irp_split = SC.split_account_by_strategy_v2("IRP", _normalize_holdings("IRP"))
-
-    # Discrepancy 경고 (SS state amt > KIS amt)
-    all_warnings = (isa_split.get("_warnings", []) + pen_split.get("_warnings", [])
-                    + irp_split.get("_warnings", []))
-    for w in all_warnings:
-        print(f"  ⚠️ [Discrepancy] {w['account']} {w['code']}: {w['msg']}")
+    isa_split = SC.split_account_by_strategy("ISA", _normalize_holdings("ISA"))
+    pen_split = SC.split_account_by_strategy("Pension", _normalize_holdings("Pension"))
+    irp_split = SC.split_account_by_strategy("IRP", _normalize_holdings("IRP"))
 
     print(f"  [P11 분류] ISA Hybrid {isa_split['Hybrid']['tickers']}")
     print(f"  [P11 분류] ISA SmartSplit {isa_split['SmartSplit']['tickers']}")

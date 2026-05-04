@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-04 23:35:25",
+  "last_updated": "2026-05-04 15:56:20",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -1118,7 +1118,7 @@
         },
         {
           "account": "Pension",
-          "strategy": "Hybrid",
+          "strategy": "SmartSplit",
           "action": "매수",
           "stock_code": "466920",
           "stock_name": "SOL 조선TOP3플러스",
@@ -1128,7 +1128,7 @@
         },
         {
           "account": "Pension",
-          "strategy": "Hybrid",
+          "strategy": "SmartSplit",
           "action": "매도",
           "stock_code": "487240",
           "stock_name": "KODEX AI전력핵심설비",
@@ -1148,7 +1148,7 @@
         },
         {
           "account": "Pension",
-          "strategy": "Hybrid",
+          "strategy": "SmartSplit",
           "action": "매도",
           "stock_code": "487240",
           "stock_name": "KODEX AI전력핵심설비",
@@ -1168,7 +1168,7 @@
         },
         {
           "account": "Pension",
-          "strategy": "Hybrid",
+          "strategy": "SmartSplit",
           "action": "매도",
           "stock_code": "466920",
           "stock_name": "SOL 조선TOP3플러스",
@@ -1177,7 +1177,7 @@
           "amount": 207250
         }
       ],
-      "kis_fetch_at": "2026-05-04T23:35:01",
+      "kis_fetch_at": "2026-05-04T15:55:50",
       "kis_fetch_status": {
         "ISA": "OK",
         "Pension": "OK",
@@ -1197,25 +1197,14 @@
       },
       "strategy_pnl": {
         "Hybrid": {
-          "capital": 117320990,
-          "current": 121143495,
-          "pnl": 3822505,
-          "pct": 3.26,
-          "cagr": 85.14,
+          "capital": 46285809,
+          "current": 47969870,
+          "pnl": 1684061,
+          "pct": 3.64,
+          "cagr": 98.68,
           "tickers": [
-            "000660",
-            "005930",
-            "0091P0",
             "133690",
             "381180",
-            "418660",
-            "494310",
-            "0091P0",
-            "091160",
-            "381180",
-            "463250",
-            "466920",
-            "487240",
             "091160",
             "381180",
             "445290",
@@ -1223,14 +1212,25 @@
           ]
         },
         "SmartSplit": {
-          "capital": 10440750,
-          "current": 12040615,
-          "pnl": 1599865,
-          "pct": 15.32,
-          "cagr": 1446.88,
+          "capital": 81476021,
+          "current": 85214240,
+          "pnl": 3738219,
+          "pct": 4.59,
+          "cagr": 136.74,
           "tickers": [
+            "000660",
+            "005930",
+            "0091P0",
+            "418660",
             "487240",
-            "381170"
+            "494310",
+            "0091P0",
+            "091160",
+            "381170",
+            "381180",
+            "463250",
+            "466920",
+            "487240"
           ]
         },
         "Safety": {
@@ -1247,57 +1247,56 @@
       "strategy_matrix": [
         {
           "row": "ISA Hybrid",
-          "capital": 45845764,
-          "current": 46388350,
-          "pnl": 542586,
-          "pct": 1.18,
-          "cagr": 25.36,
+          "capital": 20449069,
+          "current": 20748350,
+          "pnl": 299281,
+          "pct": 1.46,
+          "cagr": 32.2,
           "tickers": [
-            "000660",
-            "005930",
-            "0091P0",
             "133690",
-            "381180",
-            "418660",
-            "494310"
+            "381180"
           ]
         },
         {
           "row": "ISA SmartSplit",
-          "capital": 10243380,
-          "current": 11846065,
-          "pnl": 1602685,
-          "pct": 15.65,
-          "cagr": 1532.21,
+          "capital": 35640075,
+          "current": 37486065,
+          "pnl": 1845990,
+          "pct": 5.18,
+          "cagr": 163.82,
           "tickers": [
-            "487240"
+            "000660",
+            "005930",
+            "0091P0",
+            "418660",
+            "487240",
+            "494310"
           ]
         },
         {
           "row": "연금 Hybrid",
-          "capital": 45638486,
-          "current": 47533625,
-          "pnl": 1895139,
-          "pct": 4.15,
-          "cagr": 139.54,
+          "capital": 0,
+          "current": 0,
+          "pnl": 0,
+          "pct": 0.0,
+          "cagr": 0.0,
+          "tickers": []
+        },
+        {
+          "row": "연금 SmartSplit",
+          "capital": 45835946,
+          "current": 47728175,
+          "pnl": 1892229,
+          "pct": 4.13,
+          "cagr": 138.35,
           "tickers": [
             "0091P0",
             "091160",
+            "381170",
             "381180",
             "463250",
             "466920",
             "487240"
-          ]
-        },
-        {
-          "row": "연금 SmartSplit",
-          "capital": 197370,
-          "current": 194550,
-          "pnl": -2820,
-          "pct": -1.43,
-          "cagr": -26.58,
-          "tickers": [
-            "381170"
           ]
         },
         {
@@ -1336,26 +1335,26 @@
         }
       ],
       "canary": {
-        "SPY": 1.8096,
-        "VWO": 1.8854,
-        "VEA": 1.5246,
-        "BND": 0.0367
+        "SPY": 1.7982,
+        "VWO": 1.7337,
+        "VEA": 1.4433,
+        "BND": 0.0848
       },
       "realtime_estimate": {
         "official_hantoo": null,
         "official_kis": 174565692,
-        "estimated": 174470976,
-        "gap": -94716,
-        "gap_pct": -0.0543,
+        "estimated": 175037616,
+        "gap": 471924,
+        "gap_pct": 0.2703,
         "breakdown": {
-          "fx_adjustment": -219025,
-          "sox_adjustment": -1103,
-          "nasdaq_adjustment": 125413,
+          "fx_adjustment": -313226,
+          "sox_adjustment": 166579,
+          "nasdaq_adjustment": 618572,
           "sp500_adjustment": 0,
           "other_us_adjustment": 0,
           "irp_lag_adjustment": 0
         },
-        "snapshot_time": "2026-05-04 23:35:24"
+        "snapshot_time": "2026-05-04 15:56:16"
       },
       "pnl_kis": {
         "ISA": 2823057,
@@ -1365,5 +1364,5 @@
       }
     }
   ],
-  "last_kis_fetch": "2026-05-04T23:35:01"
+  "last_kis_fetch": "2026-05-04T15:55:50"
 }

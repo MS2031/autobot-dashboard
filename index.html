@@ -129,7 +129,11 @@
 </head>
 <body>
   <h1>AutobotEx 자동매매 대시보드</h1>
-  <div class="sub-date" id="lastUpdated">로딩 중...</div>
+  <div class="sub-date" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <span id="lastUpdated">로딩 중...</span>
+    <button id="manualRefresh" style="background:#2a3656;color:#e8e8f0;border:1px solid #4a90e2;border-radius:6px;padding:4px 10px;font-size:13px;cursor:pointer;">🔄 새로고침</button>
+    <span id="autoRefreshState" style="font-size:12px;color:#8a8aa3;"></span>
+  </div>
 
   <section>
     <h2>전체 요약</h2>
@@ -932,6 +936,45 @@ function renderAccountCharts(records, accs, initialTotal, annotations) {
 }
 
 load();
+
+// ─────────────────────────────────────────────
+// 자동 reload (Phase 3 추가, 2026-05-04)
+// 평일 09:00 ~ 15:40 KST 매 60초마다 daily.json 재조회
+// 그 외 시간에는 정지 (서버 부하 / 무의미한 새로고침 방지)
+// ─────────────────────────────────────────────
+(function setupAutoReload() {
+  const REFRESH_MS = 60 * 1000;
+  function isAutoRefreshActive() {
+    const now = new Date();
+    const day = now.getDay();
+    if (day === 0 || day === 6) return false;  // 일/토
+    const mins = now.getHours() * 60 + now.getMinutes();
+    return mins >= 9 * 60 && mins <= 15 * 60 + 40;
+  }
+  function tick() {
+    const stateEl = document.getElementById('autoRefreshState');
+    if (isAutoRefreshActive()) {
+      load();
+      if (stateEl) stateEl.textContent = '자동 새로고침: 활성 (60초)';
+    } else {
+      if (stateEl) stateEl.textContent = '자동 새로고침: 비활성 (장 외 시간)';
+    }
+  }
+  tick();
+  setInterval(tick, REFRESH_MS);
+
+  const btn = document.getElementById('manualRefresh');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      btn.textContent = '⏳ 새로고침 중...';
+      btn.disabled = true;
+      load().finally(() => {
+        btn.textContent = '🔄 새로고침';
+        btn.disabled = false;
+      });
+    });
+  }
+})();
 </script>
 </body>
 </html>

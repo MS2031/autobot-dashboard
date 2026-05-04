@@ -68,37 +68,33 @@ DISCORD_WEBHOOK = (
     "-sqgdVy8BQ-G0LxwX51mHCwV1nuqgJieIznyV8_5Zaq18nqKXQ9VEE-N77oCdQnbHT0D"
 )
 
-# 종목코드 → 전략 매핑. 잔고는 가중치로 분배하므로, 매매내역 표시용으로만 사용.
-# ISA의 133690은 Hybrid/SmartSplit 양쪽 존재 → Hybrid로 기본 할당.
+# 매매내역 분류는 utils/strategy_classifier (단일 SoT) 사용. (Phase 3, 2026-05-04 통합)
+# 잔고는 weights 기반 분배.
 ACCOUNTS = {
     "ISA": {
         "dir": r"C:\AutobotEx\ISA",
         "weights": {"hybrid": 0.55, "smartsplit": 0.45},
-        "stock_map": {
-            "122630": "smartsplit",
-            "091160": "smartsplit",
-            "161510": "smartsplit",
-        },
-        "default_strategy": "hybrid",
     },
     "Pension": {
         "dir": r"C:\AutobotEx\Pension",
         "weights": {"hybrid": 0.75, "smartsplit": 0.25},
-        "stock_map": {
-            "091160": "smartsplit",
-            "463250": "smartsplit",
-        },
-        "default_strategy": "hybrid",
     },
     "IRP": {
         "dir": r"C:\AutobotEx\IRP",
         "weights": {"hybrid": 0.70, "safe": 0.30},
-        "stock_map": {},
-        "default_strategy": "hybrid",
     },
 }
 
-STRATEGY_LABEL = {"hybrid": "Hybrid", "smartsplit": "SmartSplit", "safe": "안전자산"}
+STRATEGY_LABEL = {"hybrid": "Hybrid", "smartsplit": "SmartSplit", "safe": "안전자산", "safety": "안전자산"}
+
+
+def _classify_trade(account, code):
+    """매매 1건의 전략 라벨. SC(strategy_classifier) 우선, fallback은 hybrid."""
+    if SC is not None:
+        # classify_holding returns "Hybrid" | "SmartSplit" | "Safety" (Title case)
+        label = SC.classify_holding(account, code)
+        return label  # already display-ready
+    return "Hybrid"
 
 # 한국거래소 휴장일 (주말 외) — 2026년분 하드코딩.
 # 매년 1월 KRX가 다음해 휴장일을 공지하면 갱신할 것.
@@ -221,8 +217,6 @@ def split_balance(account_key, balance):
 
 def normalize_trades(account_key, raw_orders):
     """KIS GetOrderList 원시 형식 → daily.json trades 표준 dict 리스트."""
-    meta = ACCOUNTS[account_key]
-    smap, default = meta["stock_map"], meta["default_strategy"]
     out = []
     for o in raw_orders:
         code = str(o.get("OrderStock", "") or "")
@@ -235,10 +229,9 @@ def normalize_trades(account_key, raw_orders):
             price = int(round(float(o.get("OrderAvgPrice", 0))))
         except Exception:
             price = 0
-        strategy_key = smap.get(code, default)
         out.append({
             "account": account_key,
-            "strategy": STRATEGY_LABEL.get(strategy_key, strategy_key),
+            "strategy": _classify_trade(account_key, code),
             "action": side,
             "stock_code": code,
             "stock_name": o.get("OrderStockName", "") or "",

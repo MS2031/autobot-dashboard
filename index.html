@@ -187,7 +187,7 @@
       </div>
       <div class="chart-card">
         <div class="chart-card-header">
-          <div class="title">IRP 누적 수익률 <span style="font-size:13px; color:#a78bfa; font-weight:500;">📌 월간 리밸런싱 (다음: 2026-06-01)</span></div>
+          <div class="title">IRP 누적 수익률 <span style="font-size:13px; color:#a78bfa; font-weight:500;">📡 일간 시그널 (Discord 알림 전용)</span></div>
           <div class="stats" id="irpStats"></div>
         </div>
         <div class="chart-wrap-sm"><canvas id="irpChart"></canvas></div>
@@ -270,7 +270,7 @@ const totalActual = r =>
 const irpActual = r => r.IRP_hybrid_actual + r.IRP_safe_actual;
 const irpSignal = r => r.IRP_hybrid_signal + r.IRP_safe_signal;
 
-// P3: IRP 시그널 칼럼 제거 — 월간 리밸런싱 계좌이므로 일별 시그널 무의미
+// IRP 시그널 칼럼 제거 — Discord 알림 전용이라 대시보드 시그널 라인 무의미
 const colsOf = r => [
   r.ISA_hybrid,
   r.ISA_smartsplit,
@@ -540,10 +540,10 @@ function renderAccountCards(accs, last) {
       }
       summary += `<div class="row"><span class="k">계좌 수익금</span>` +
                  `<span class="v ${colorClass(accountProfit)}">${fmtSignedWon(accountProfit)}</span></div>`;
-      // P3: IRP 카드에서 "실제 vs 시그널" 라인 제거. 월간 잠금 배지로 대체.
+      // 2026-05-04 23:30: IRP 일간 시그널 배지 (Discord 알림 전용)
       if (c.key === 'IRP') {
         summary += `<div class="row"><span class="k">전략</span>` +
-                   `<span class="v" style="font-size:13px; color:#a78bfa;">📌 월간 리밸런싱 (다음: 2026-06-01)</span></div>`;
+                   `<span class="v" style="font-size:13px; color:#a78bfa;">📡 일간 시그널 (Discord 알림 전용)</span></div>`;
       }
       body += `<div class="account-summary">${summary}</div>`;
     } else {
@@ -758,7 +758,7 @@ function renderProfitTable(wrapId, records, accs, mode) {
 
   rows.sort((a, b) => b.date.localeCompare(a.date));
 
-  // P3: IRP 시그널 칼럼 제거 — 월간 리밸런싱 계좌
+  // IRP 시그널 칼럼 제거 — Discord 알림 전용
   let html = `<table>
     <thead><tr>
       <th>날짜</th>
@@ -905,7 +905,7 @@ function renderAccountCharts(records, accs, initialTotal, annotations) {
       tension: 0.3, fill: false, borderWidth: 2.5 }
   ], false, ann);
 
-  // P3: IRP 차트 단순화 — 시그널 라인 제거, 단일 실제 라인만 표시 (월간 리밸런싱 계좌)
+  // IRP 차트 단순화 — 시그널 라인 제거, 단일 실제 라인만 표시 (Discord 알림 전용 계좌)
   const irpActSeries = records.map(r =>
     irpInit ? ((irpActual(r) - irpInit) / irpInit) * 100 : 0);
   const irpActProfit = irpActual(last) - irpInit;

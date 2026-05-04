@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-04 23:35:25",
+  "last_updated": "2026-05-04 23:57:56",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -1177,7 +1177,7 @@
           "amount": 207250
         }
       ],
-      "kis_fetch_at": "2026-05-04T23:35:01",
+      "kis_fetch_at": "2026-05-04T23:57:32",
       "kis_fetch_status": {
         "ISA": "OK",
         "Pension": "OK",
@@ -1336,26 +1336,26 @@
         }
       ],
       "canary": {
-        "SPY": 1.8096,
-        "VWO": 1.8854,
-        "VEA": 1.5246,
-        "BND": 0.0367
+        "SPY": 1.7958,
+        "VWO": 1.8712,
+        "VEA": 1.4768,
+        "BND": 0.0302
       },
       "realtime_estimate": {
         "official_hantoo": null,
         "official_kis": 174565692,
-        "estimated": 174470976,
-        "gap": -94716,
-        "gap_pct": -0.0543,
+        "estimated": 174516628,
+        "gap": -49064,
+        "gap_pct": -0.0281,
         "breakdown": {
-          "fx_adjustment": -219025,
-          "sox_adjustment": -1103,
-          "nasdaq_adjustment": 125413,
+          "fx_adjustment": -200927,
+          "sox_adjustment": 16563,
+          "nasdaq_adjustment": 135299,
           "sp500_adjustment": 0,
           "other_us_adjustment": 0,
           "irp_lag_adjustment": 0
         },
-        "snapshot_time": "2026-05-04 23:35:24"
+        "snapshot_time": "2026-05-04 23:57:54"
       },
       "pnl_kis": {
         "ISA": 2823057,
@@ -1365,5 +1365,5 @@
       }
     }
   ],
-  "last_kis_fetch": "2026-05-04T23:35:01"
+  "last_kis_fetch": "2026-05-04T23:57:32"
 }

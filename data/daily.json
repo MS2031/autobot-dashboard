@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-04 11:01:16",
+  "last_updated": "2026-05-04 12:01:18",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -1047,15 +1047,35 @@
     {
       "date": "2026-05-04",
       "mode": "공격",
-      "ISA_hybrid": 46370722,
-      "ISA_smartsplit": 37939681,
-      "Pension_hybrid": 38065612,
-      "Pension_smartsplit": 12688538,
-      "IRP_hybrid_actual": 27061534,
-      "IRP_hybrid_signal": 27061534,
-      "IRP_safe_actual": 11597800,
-      "IRP_safe_signal": 11597800,
+      "ISA_hybrid": 46357903,
+      "ISA_smartsplit": 37929194,
+      "Pension_hybrid": 38018392,
+      "Pension_smartsplit": 12672798,
+      "IRP_hybrid_actual": 27065000,
+      "IRP_hybrid_signal": 27065000,
+      "IRP_safe_actual": 11599286,
+      "IRP_safe_signal": 11599286,
       "trades": [
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "418660",
+          "stock_name": "TIGER 미국나스닥100레버리지(합성)",
+          "qty": 276,
+          "price": 41630,
+          "amount": 11489880
+        },
+        {
+          "account": "ISA",
+          "strategy": "Hybrid",
+          "action": "매수",
+          "stock_code": "494310",
+          "stock_name": "KODEX 반도체레버리지",
+          "qty": 107,
+          "price": 108495,
+          "amount": 11608965
+        },
         {
           "account": "ISA",
           "strategy": "Hybrid",
@@ -1127,7 +1147,7 @@
           "amount": 207250
         }
       ],
-      "kis_fetch_at": "2026-05-04T11:00:48",
+      "kis_fetch_at": "2026-05-04T12:00:48",
       "kis_fetch_status": {
         "ISA": "OK",
         "Pension": "OK",
@@ -1140,18 +1160,18 @@
         "IRP": "OFFENSE"
       },
       "cagr": {
-        "Portfolio": 90.97,
-        "ISA": 82.89,
-        "Pension": 109.15,
-        "IRP": 124.66
+        "Portfolio": 89.26,
+        "ISA": 81.92,
+        "Pension": 103.65,
+        "IRP": 125.28
       },
       "strategy_pnl": {
         "Hybrid": {
           "capital": 54662169,
-          "current": 57499880,
-          "pnl": 2837711,
-          "pct": 5.19,
-          "cagr": 164.39,
+          "current": 57313090,
+          "pnl": 2650921,
+          "pct": 4.85,
+          "cagr": 148.37,
           "tickers": [
             "133690",
             "381180",
@@ -1163,16 +1183,18 @@
           ]
         },
         "SmartSplit": {
-          "capital": 31303876,
-          "current": 33232735,
-          "pnl": 1928859,
-          "pct": 6.16,
-          "cagr": 215.4,
+          "capital": 54402721,
+          "current": 56361725,
+          "pnl": 1959004,
+          "pct": 3.6,
+          "cagr": 97.31,
           "tickers": [
             "000660",
             "005930",
             "0091P0",
+            "418660",
             "487240",
+            "494310",
             "0091P0",
             "091160",
             "381170",
@@ -1181,10 +1203,10 @@
         },
         "Safety": {
           "capital": 11264000,
-          "current": 11589240,
-          "pnl": 325240,
-          "pct": 2.89,
-          "cagr": 84.26,
+          "current": 11663340,
+          "pnl": 399340,
+          "pct": 3.55,
+          "cagr": 111.28,
           "tickers": [
             "0162Z0"
           ]
@@ -1194,10 +1216,10 @@
         {
           "row": "ISA Hybrid",
           "capital": 20449069,
-          "current": 20860790,
-          "pnl": 411721,
-          "pct": 2.01,
-          "cagr": 46.66,
+          "current": 20865920,
+          "pnl": 416851,
+          "pct": 2.04,
+          "cagr": 47.35,
           "tickers": [
             "133690",
             "381180"
@@ -1205,25 +1227,27 @@
         },
         {
           "row": "ISA SmartSplit",
-          "capital": 12541230,
-          "current": 14058935,
-          "pnl": 1517705,
-          "pct": 12.1,
-          "cagr": 797.59,
+          "capital": 35640075,
+          "current": 37135885,
+          "pnl": 1495810,
+          "pct": 4.2,
+          "cagr": 120.3,
           "tickers": [
             "000660",
             "005930",
             "0091P0",
-            "487240"
+            "418660",
+            "487240",
+            "494310"
           ]
         },
         {
           "row": "연금 Hybrid",
           "capital": 8376360,
-          "current": 9574880,
-          "pnl": 1198520,
-          "pct": 14.31,
-          "cagr": 1665.91,
+          "current": 9457850,
+          "pnl": 1081490,
+          "pct": 12.91,
+          "cagr": 1256.11,
           "tickers": [
             "487240"
           ]
@@ -1231,10 +1255,10 @@
         {
           "row": "연금 SmartSplit",
           "capital": 18762646,
-          "current": 19173800,
-          "pnl": 411154,
-          "pct": 2.19,
-          "cagr": 59.27,
+          "current": 19225840,
+          "pnl": 463194,
+          "pct": 2.47,
+          "cagr": 68.81,
           "tickers": [
             "0091P0",
             "091160",
@@ -1245,10 +1269,10 @@
         {
           "row": "IRP Hybrid",
           "capital": 25836740,
-          "current": 27064210,
-          "pnl": 1227470,
-          "pct": 4.75,
-          "cagr": 170.89,
+          "current": 26989320,
+          "pnl": 1152580,
+          "pct": 4.46,
+          "cagr": 155.25,
           "tickers": [
             "091160",
             "381180",
@@ -1259,18 +1283,18 @@
         {
           "row": "IRP 안전자산",
           "capital": 11264000,
-          "current": 11589240,
-          "pnl": 325240,
-          "pct": 2.89,
-          "cagr": 84.26,
+          "current": 11663340,
+          "pnl": 399340,
+          "pct": 3.55,
+          "cagr": 111.28,
           "tickers": [
             "0162Z0"
           ]
         },
         {
           "row": "현금 (미투입)",
-          "capital": 71408373,
-          "current": 71408373,
+          "capital": 48308557,
+          "current": 48308557,
           "pnl": 0,
           "pct": 0.0,
           "cagr": 0.0,
@@ -1285,27 +1309,27 @@
       },
       "realtime_estimate": {
         "official_hantoo": null,
-        "official_kis": 173723887,
-        "estimated": 174198156,
-        "gap": 474269,
-        "gap_pct": 0.273,
+        "official_kis": 173642573,
+        "estimated": 174297707,
+        "gap": 655134,
+        "gap_pct": 0.3773,
         "breakdown": {
-          "fx_adjustment": -108049,
-          "sox_adjustment": 167306,
-          "nasdaq_adjustment": 415012,
+          "fx_adjustment": -129374,
+          "sox_adjustment": 167413,
+          "nasdaq_adjustment": 617095,
           "sp500_adjustment": 0,
           "other_us_adjustment": 0,
           "irp_lag_adjustment": 0
         },
-        "snapshot_time": "2026-05-04 11:01:15"
+        "snapshot_time": "2026-05-04 12:01:13"
       },
       "pnl_kis": {
-        "ISA": 2608253,
-        "Pension": 1714646,
-        "IRP": 1430280,
-        "Total": 5753179
+        "ISA": 2584947,
+        "Pension": 1651686,
+        "IRP": 1435232,
+        "Total": 5671865
       }
     }
   ],
-  "last_kis_fetch": "2026-05-04T11:00:48"
+  "last_kis_fetch": "2026-05-04T12:00:48"
 }

@@ -745,10 +745,29 @@ def main():
     ]
 
     # ─── (2026-05-05) holdings_detail — 보유 종목별 일일 상세 ───
-    # 종목당 1라인. 동일 ticker SS/Hy 양쪽 보유 시 단일 라벨 (SmartSplit 우선).
-    # SS 종목은 차수(split_level) 추가.
+    # 분류 규칙 (매트릭스와 일관성 유지):
+    #   - IRP Safety (0162Z0) → Safety
+    #   - IRP 그 외 → Hybrid
+    #   - ISA/Pension: SS STOCKS에 있고 SS state JSON에 실제 매수 차수 존재 → SmartSplit
+    #     (SS STOCKS에 있어도 SS 매수 0이면 Hybrid 잔여로 보고 Hybrid 분류)
     holdings_detail = []
     if SC is not None:
+        def _classify_with_state(account, code):
+            if account == "IRP" and code in SC.IRP_SAFETY:
+                return "Safety", None
+            if account == "IRP":
+                return "Hybrid", None
+            if code not in SC.SMARTSPLIT_PER_ACCOUNT.get(account, set()):
+                return "Hybrid", None
+            ss_state = SC._load_smartsplit_state(account)
+            rec = ss_state.get(code)
+            if rec:
+                levels = [m["Number"] for m in rec.get("MagicDataList", [])
+                          if m.get("IsBuy") and m.get("EntryAmt", 0) > 0]
+                if levels:
+                    return "SmartSplit", max(levels)
+            return "Hybrid", None
+
         for account_key in ["ISA", "Pension", "IRP"]:
             r = results.get(account_key)
             if not r:
@@ -764,19 +783,7 @@ def main():
                 current = eval_amt / qty if qty > 0 else 0.0
                 pnl = eval_amt - pchs
                 pnl_pct = (pnl / pchs * 100.0) if pchs > 0 else 0.0
-                strategy = SC.classify_holding(account_key, code)
-                split_level = None
-                if strategy == "SmartSplit":
-                    try:
-                        ss_state = SC._load_smartsplit_state(account_key)
-                        rec = ss_state.get(code)
-                        if rec:
-                            levels = [m["Number"] for m in rec.get("MagicDataList", [])
-                                      if m.get("IsBuy") and m.get("EntryAmt", 0) > 0]
-                            if levels:
-                                split_level = max(levels)
-                    except Exception:
-                        pass
+                strategy, split_level = _classify_with_state(account_key, code)
                 holdings_detail.append({
                     "account": account_key,
                     "strategy": strategy,

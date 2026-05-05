@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-05 17:00:52",
+  "last_updated": "2026-05-05 17:03:16",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -1376,7 +1376,7 @@
       "IRP_safe_actual": 11696720,
       "IRP_safe_signal": 11696720,
       "trades": [],
-      "kis_fetch_at": "2026-05-05T17:00:28",
+      "kis_fetch_at": "2026-05-05T17:02:54",
       "kis_fetch_status": {
         "ISA": "OK",
         "Pension": "OK",
@@ -1607,7 +1607,7 @@
         },
         {
           "account": "ISA",
-          "strategy": "SmartSplit",
+          "strategy": "Hybrid",
           "stock_code": "418660",
           "stock_name": "TIGER 미국나스닥100레버리지(합성)",
           "qty": 276,
@@ -1635,7 +1635,7 @@
         },
         {
           "account": "ISA",
-          "strategy": "SmartSplit",
+          "strategy": "Hybrid",
           "stock_code": "494310",
           "stock_name": "KODEX 반도체레버리지",
           "qty": 107,
@@ -1691,7 +1691,7 @@
         },
         {
           "account": "Pension",
-          "strategy": "SmartSplit",
+          "strategy": "Hybrid",
           "stock_code": "381180",
           "stock_name": "TIGER 미국필라델피아반도체나스닥",
           "qty": 228,
@@ -1705,7 +1705,7 @@
         },
         {
           "account": "Pension",
-          "strategy": "SmartSplit",
+          "strategy": "Hybrid",
           "stock_code": "463250",
           "stock_name": "TIGER K방산&우주",
           "qty": 181,
@@ -1823,36 +1823,36 @@
         "BND": 0.0042
       },
       "vix": {
-        "today": 17.93,
+        "today": 17.95,
         "yesterday": 18.29,
-        "change_1d": -0.0197,
+        "change_1d": -0.0186,
         "level": "정상"
       },
       "mode_reason": "OFFENSE: 카나리아 + VIX 모두 정상",
       "warnings": [],
       "fx": {
-        "current": 1473.52,
+        "current": 1473.9,
         "ma60": 1474.68,
-        "ma20": 1476.74,
-        "deviation_pct": -0.08,
-        "accel_pct": -0.22,
+        "ma20": 1476.76,
+        "deviation_pct": -0.05,
+        "accel_pct": -0.19,
         "level": "✅ 정상"
       },
       "realtime_estimate": {
         "official_hantoo": null,
         "official_kis": 174565692,
-        "estimated": 174410810,
-        "gap": -154882,
-        "gap_pct": -0.0887,
+        "estimated": 174428471,
+        "gap": -137221,
+        "gap_pct": -0.0786,
         "breakdown": {
-          "fx_adjustment": 83193,
+          "fx_adjustment": 100854,
           "sox_adjustment": -109347,
           "nasdaq_adjustment": -128728,
           "sp500_adjustment": 0,
           "other_us_adjustment": 0,
           "irp_lag_adjustment": 0
         },
-        "snapshot_time": "2026-05-05 17:00:50"
+        "snapshot_time": "2026-05-05 17:03:15"
       },
       "pnl_kis": {
         "ISA": 2823057,
@@ -1862,5 +1862,5 @@
       }
     }
   ],
-  "last_kis_fetch": "2026-05-05T17:00:28"
+  "last_kis_fetch": "2026-05-05T17:02:54"
 }

@@ -159,6 +159,27 @@
     @media (max-width: 480px) {
       #safetyPanel { grid-template-columns: 1fr !important; }
     }
+
+    /* (2026-05-05) 보유 종목 상세 — 모바일 압축 (768px 이하) */
+    @media (max-width: 768px) {
+      #holdingsDetailWrap th:nth-child(1),
+      #holdingsDetailWrap td:nth-child(1),
+      #holdingsDetailWrap th:nth-child(4),
+      #holdingsDetailWrap td:nth-child(4),
+      #holdingsDetailWrap th:nth-child(5),
+      #holdingsDetailWrap td:nth-child(5),
+      #holdingsDetailWrap th:nth-child(6),
+      #holdingsDetailWrap td:nth-child(6),
+      #holdingsDetailWrap th:nth-child(7),
+      #holdingsDetailWrap td:nth-child(7),
+      #holdingsDetailWrap th:nth-child(9),
+      #holdingsDetailWrap td:nth-child(9) {
+        display: none;
+      }
+      /* 종목명 / 손익률 강조 */
+      #holdingsDetailWrap td:nth-child(3) { font-size: 13px; }
+      #holdingsDetailWrap td:nth-child(10) { font-size: 14px; font-weight: 700; }
+    }
   </style>
 </head>
 <body>
@@ -200,6 +221,30 @@
   <section>
     <h2>오늘 매매내역</h2>
     <div class="table-wrap" id="tradesTableWrap"><div class="empty">로딩 중...</div></div>
+  </section>
+
+  <section>
+    <h2>오늘 보유 종목 상세</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <label style="font-size:14px;color:#b8b8d0;">계좌:
+        <select id="hdAccountFilter" style="background:#16213e;color:#e8e8f0;border:1px solid #2a3656;border-radius:4px;padding:4px 8px;font-size:13px;">
+          <option value="ALL">전체</option>
+          <option value="ISA">ISA</option>
+          <option value="Pension">연금</option>
+          <option value="IRP">IRP</option>
+        </select>
+      </label>
+      <label style="font-size:14px;color:#b8b8d0;">전략:
+        <select id="hdStrategyFilter" style="background:#16213e;color:#e8e8f0;border:1px solid #2a3656;border-radius:4px;padding:4px 8px;font-size:13px;">
+          <option value="ALL">전체</option>
+          <option value="Hybrid">Hybrid</option>
+          <option value="SmartSplit">SmartSplit</option>
+          <option value="Safety">안전자산</option>
+        </select>
+      </label>
+      <span id="hdSummary" style="font-size:13px;color:#8a8aa3;margin-left:auto;align-self:center;"></span>
+    </div>
+    <div class="table-wrap" id="holdingsDetailWrap"><div class="empty">로딩 중...</div></div>
   </section>
 
   <section>
@@ -477,6 +522,99 @@ async function load() {
   renderAccountCharts(records, accs, initialTotal, annotations);
   renderCanaryChart(records, annotations);
   renderSafetyPanel(last);
+  renderHoldingsDetail(last);
+}
+
+// (2026-05-05) 오늘 보유 종목 상세 — 필터 + 표 + 모바일 카드
+let _holdingsDetailCache = [];
+function renderHoldingsDetail(last) {
+  const wrap = document.getElementById('holdingsDetailWrap');
+  const summaryEl = document.getElementById('hdSummary');
+  if (!wrap) return;
+  const detail = (last && last.holdings_detail) || [];
+  _holdingsDetailCache = detail;
+  drawHoldingsDetail();
+  // 필터 핸들러는 한 번만 등록
+  if (!window._hdFilterBound) {
+    window._hdFilterBound = true;
+    document.getElementById('hdAccountFilter').addEventListener('change', drawHoldingsDetail);
+    document.getElementById('hdStrategyFilter').addEventListener('change', drawHoldingsDetail);
+  }
+}
+
+function drawHoldingsDetail() {
+  const wrap = document.getElementById('holdingsDetailWrap');
+  const summaryEl = document.getElementById('hdSummary');
+  if (!wrap) return;
+  const detail = _holdingsDetailCache || [];
+  if (!detail.length) {
+    wrap.innerHTML = '<div class="empty">보유 종목 데이터 없음 (다음 대시보드 업데이트 후 표시)</div>';
+    if (summaryEl) summaryEl.textContent = '';
+    return;
+  }
+  const accFilter = document.getElementById('hdAccountFilter').value;
+  const strFilter = document.getElementById('hdStrategyFilter').value;
+  const filtered = detail.filter(h =>
+    (accFilter === 'ALL' || h.account === accFilter) &&
+    (strFilter === 'ALL' || h.strategy === strFilter)
+  );
+
+  // 손익률 내림차순 정렬
+  filtered.sort((a, b) => (b.pnl_pct || 0) - (a.pnl_pct || 0));
+
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="empty">필터 조건에 맞는 종목이 없습니다.</div>';
+    if (summaryEl) summaryEl.textContent = `${detail.length}종 중 0종 표시`;
+    return;
+  }
+
+  // 합계
+  const sumBuy = filtered.reduce((s, h) => s + (h.buy_amount || 0), 0);
+  const sumCur = filtered.reduce((s, h) => s + (h.current_amount || 0), 0);
+  const sumPnl = sumCur - sumBuy;
+  const sumPct = sumBuy > 0 ? (sumPnl / sumBuy * 100) : 0;
+  if (summaryEl) {
+    summaryEl.innerHTML = `${filtered.length}종 표시 / 매입 <strong>${fmtWon(sumBuy)}</strong> → 평가 <strong>${fmtWon(sumCur)}</strong> / 손익 <span class="${colorClass(sumPnl)}">${fmtSignedWon(sumPnl)} (${fmtPct(sumPct)})</span>`;
+  }
+
+  // 손익률 색상 배지
+  const badge = pct => {
+    if (pct >= 1.0) return '🟢';
+    if (pct <= -1.0) return '🔴';
+    return '🟡';
+  };
+
+  // PC: 표 형식
+  let html = `<table>
+    <thead><tr>
+      <th>계좌</th><th>전략</th><th>종목</th>
+      <th>수량</th><th>평균매입</th><th>현재가</th>
+      <th>매입금액</th><th>평가금액</th>
+      <th>손익</th><th>손익률</th>
+    </tr></thead><tbody>`;
+  const accLabel = { ISA: 'ISA', Pension: '연금', IRP: 'IRP' };
+  const strColor = {
+    Hybrid: '#4ade80',
+    SmartSplit: '#60a5fa',
+    Safety: '#a78bfa',
+  };
+  filtered.forEach(h => {
+    const lvlInfo = (h.split_level != null) ? ` <span style="color:#a78bfa;font-size:12px;">(${h.split_level}차)</span>` : '';
+    html += `<tr>
+      <td>${accLabel[h.account] || h.account}</td>
+      <td><span style="color:${strColor[h.strategy] || '#e8e8f0'};">${h.strategy}</span>${lvlInfo}</td>
+      <td><strong>${h.stock_code}</strong> <span style="color:#8a8aa3;font-size:13px;">${h.stock_name || ''}</span></td>
+      <td>${(h.qty || 0).toLocaleString('ko-KR')}</td>
+      <td>${fmtWon(h.avg_buy_price)}</td>
+      <td>${fmtWon(h.current_price)}</td>
+      <td>${fmtWon(h.buy_amount)}</td>
+      <td>${fmtWon(h.current_amount)}</td>
+      <td class="${colorClass(h.pnl)}">${fmtSignedWon(h.pnl)}</td>
+      <td class="${colorClass(h.pnl_pct)}">${badge(h.pnl_pct)} ${fmtPct(h.pnl_pct)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
 }
 
 // P13 (2026-05-05): 안전장치 v2 패널 — 모드/VIX/환율/경고

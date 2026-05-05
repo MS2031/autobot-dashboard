@@ -744,6 +744,56 @@ def main():
          "tickers": []},
     ]
 
+    # ─── (2026-05-05) holdings_detail — 보유 종목별 일일 상세 ───
+    # 종목당 1라인. 동일 ticker SS/Hy 양쪽 보유 시 단일 라벨 (SmartSplit 우선).
+    # SS 종목은 차수(split_level) 추가.
+    holdings_detail = []
+    if SC is not None:
+        for account_key in ["ISA", "Pension", "IRP"]:
+            r = results.get(account_key)
+            if not r:
+                continue
+            for s in r["balance"].get("stocks", []) or []:
+                code = str(s.get("code", "") or "")
+                qty = int(s.get("qty", 0) or 0)
+                if qty <= 0:
+                    continue
+                avg_buy = float(s.get("avg_price", 0) or 0)
+                eval_amt = float(s.get("value", 0) or 0)
+                pchs = float(s.get("pchs", 0) or 0)
+                current = eval_amt / qty if qty > 0 else 0.0
+                pnl = eval_amt - pchs
+                pnl_pct = (pnl / pchs * 100.0) if pchs > 0 else 0.0
+                strategy = SC.classify_holding(account_key, code)
+                split_level = None
+                if strategy == "SmartSplit":
+                    try:
+                        ss_state = SC._load_smartsplit_state(account_key)
+                        rec = ss_state.get(code)
+                        if rec:
+                            levels = [m["Number"] for m in rec.get("MagicDataList", [])
+                                      if m.get("IsBuy") and m.get("EntryAmt", 0) > 0]
+                            if levels:
+                                split_level = max(levels)
+                    except Exception:
+                        pass
+                holdings_detail.append({
+                    "account": account_key,
+                    "strategy": strategy,
+                    "stock_code": code,
+                    "stock_name": s.get("name", code) or code,
+                    "qty": qty,
+                    "avg_buy_price": int(round(avg_buy)),
+                    "current_price": int(round(current)),
+                    "buy_amount": int(round(pchs)),
+                    "current_amount": int(round(eval_amt)),
+                    "pnl": int(round(pnl)),
+                    "pnl_pct": round(pnl_pct, 2),
+                    "split_level": split_level,
+                })
+    new_record["holdings_detail"] = holdings_detail
+    print(f"  [holdings_detail] {len(holdings_detail)}종 기록")
+
     # ─── P5: 카나리아 13612W 저장 (BAA: SPY/VWO/VEA/BND) ───
     try:
         import yfinance as _yf

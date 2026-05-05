@@ -125,6 +125,40 @@
       .chart-card-header { flex-direction: column; align-items: flex-start; }
       .chart-card-header .stats { text-align: left; width: 100%; }
     }
+
+    /* P13 안전장치 v2 패널 — 가독성 (2026-05-05) */
+    #safetyPanel { display: grid; gap: 16px; }
+    #safetyPanel .card {
+      padding: 16px 18px;
+      min-height: 110px;
+    }
+    #safetyPanel .label {
+      font-size: 14px;
+      color: #b8b8d0;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    #safetyPanel .value {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+    #safetyPanel .meta {
+      font-size: 14px;
+      color: #cbd5e1;
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 768px) {
+      #safetyPanel { grid-template-columns: repeat(2, 1fr) !important; }
+      #safetyPanel .value { font-size: 22px; }
+      #safetyPanel .meta { font-size: 13px; }
+    }
+    @media (max-width: 480px) {
+      #safetyPanel { grid-template-columns: 1fr !important; }
+    }
   </style>
 </head>
 <body>

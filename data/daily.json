@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-05 10:01:20",
+  "last_updated": "2026-05-05 11:01:14",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -1376,7 +1376,7 @@
       "IRP_safe_actual": 11696720,
       "IRP_safe_signal": 11696720,
       "trades": [],
-      "kis_fetch_at": "2026-05-05T10:00:52",
+      "kis_fetch_at": "2026-05-05T11:00:50",
       "kis_fetch_status": {
         "ISA": "OK",
         "Pension": "OK",
@@ -1543,18 +1543,18 @@
       "realtime_estimate": {
         "official_hantoo": null,
         "official_kis": 174565692,
-        "estimated": 174545588,
-        "gap": -20104,
-        "gap_pct": -0.0115,
+        "estimated": 174477264,
+        "gap": -88428,
+        "gap_pct": -0.0507,
         "breakdown": {
-          "fx_adjustment": 217974,
+          "fx_adjustment": 149651,
           "sox_adjustment": -109351,
           "nasdaq_adjustment": -128728,
           "sp500_adjustment": 0,
           "other_us_adjustment": 0,
           "irp_lag_adjustment": 0
         },
-        "snapshot_time": "2026-05-05 10:01:18"
+        "snapshot_time": "2026-05-05 11:01:12"
       },
       "pnl_kis": {
         "ISA": 2823057,
@@ -1564,5 +1564,5 @@
       }
     }
   ],
-  "last_kis_fetch": "2026-05-05T10:00:52"
+  "last_kis_fetch": "2026-05-05T11:00:50"
 }

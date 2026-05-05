@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-04 23:57:56",
+  "last_updated": "2026-05-05 10:01:20",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -1363,7 +1363,206 @@
         "IRP": 1760012,
         "Total": 6594984
       }
+    },
+    {
+      "date": "2026-05-05",
+      "mode": "공격",
+      "ISA_hybrid": 46488864,
+      "ISA_smartsplit": 38036343,
+      "Pension_hybrid": 38288564,
+      "Pension_smartsplit": 12762855,
+      "IRP_hybrid_actual": 27292346,
+      "IRP_hybrid_signal": 27292346,
+      "IRP_safe_actual": 11696720,
+      "IRP_safe_signal": 11696720,
+      "trades": [],
+      "kis_fetch_at": "2026-05-05T10:00:52",
+      "kis_fetch_status": {
+        "ISA": "OK",
+        "Pension": "OK",
+        "IRP": "OK"
+      },
+      "market_closed": true,
+      "bot_modes": {
+        "ISA": "OFFENSE",
+        "Pension": "OFFENSE",
+        "IRP": "OFFENSE"
+      },
+      "cagr": {
+        "Portfolio": 101.95,
+        "ISA": 85.88,
+        "Pension": 125.99,
+        "IRP": 155.15
+      },
+      "strategy_pnl": {
+        "Hybrid": {
+          "capital": 117320990,
+          "current": 121143495,
+          "pnl": 3822505,
+          "pct": 3.26,
+          "cagr": 79.52,
+          "tickers": [
+            "000660",
+            "005930",
+            "0091P0",
+            "133690",
+            "381180",
+            "418660",
+            "494310",
+            "0091P0",
+            "091160",
+            "381180",
+            "463250",
+            "466920",
+            "487240",
+            "091160",
+            "381180",
+            "445290",
+            "487240"
+          ]
+        },
+        "SmartSplit": {
+          "capital": 10440750,
+          "current": 12040615,
+          "pnl": 1599865,
+          "pct": 15.32,
+          "cagr": 1248.92,
+          "tickers": [
+            "487240",
+            "381170"
+          ]
+        },
+        "Safety": {
+          "capital": 11264000,
+          "current": 11757200,
+          "pnl": 493200,
+          "pct": 4.38,
+          "cagr": 138.45,
+          "tickers": [
+            "0162Z0"
+          ]
+        }
+      },
+      "strategy_matrix": [
+        {
+          "row": "ISA Hybrid",
+          "capital": 45845764,
+          "current": 46388350,
+          "pnl": 542586,
+          "pct": 1.18,
+          "cagr": 23.95,
+          "tickers": [
+            "000660",
+            "005930",
+            "0091P0",
+            "133690",
+            "381180",
+            "418660",
+            "494310"
+          ]
+        },
+        {
+          "row": "ISA SmartSplit",
+          "capital": 10243380,
+          "current": 11846065,
+          "pnl": 1602685,
+          "pct": 15.65,
+          "cagr": 1319.51,
+          "tickers": [
+            "487240"
+          ]
+        },
+        {
+          "row": "연금 Hybrid",
+          "capital": 45638486,
+          "current": 47533625,
+          "pnl": 1895139,
+          "pct": 4.15,
+          "cagr": 128.19,
+          "tickers": [
+            "0091P0",
+            "091160",
+            "381180",
+            "463250",
+            "466920",
+            "487240"
+          ]
+        },
+        {
+          "row": "연금 SmartSplit",
+          "capital": 197370,
+          "current": 194550,
+          "pnl": -2820,
+          "pct": -1.43,
+          "cagr": -25.31,
+          "tickers": [
+            "381170"
+          ]
+        },
+        {
+          "row": "IRP Hybrid",
+          "capital": 25836740,
+          "current": 27221520,
+          "pnl": 1384780,
+          "pct": 5.36,
+          "cagr": 188.26,
+          "tickers": [
+            "091160",
+            "381180",
+            "445290",
+            "487240"
+          ]
+        },
+        {
+          "row": "IRP 안전자산",
+          "capital": 11264000,
+          "current": 11757200,
+          "pnl": 493200,
+          "pct": 4.38,
+          "cagr": 138.45,
+          "tickers": [
+            "0162Z0"
+          ]
+        },
+        {
+          "row": "현금 (미투입)",
+          "capital": 29624381,
+          "current": 29624381,
+          "pnl": 0,
+          "pct": 0.0,
+          "cagr": 0.0,
+          "tickers": []
+        }
+      ],
+      "canary": {
+        "SPY": 1.7038,
+        "VWO": 1.737,
+        "VEA": 1.2989,
+        "BND": 0.0042
+      },
+      "realtime_estimate": {
+        "official_hantoo": null,
+        "official_kis": 174565692,
+        "estimated": 174545588,
+        "gap": -20104,
+        "gap_pct": -0.0115,
+        "breakdown": {
+          "fx_adjustment": 217974,
+          "sox_adjustment": -109351,
+          "nasdaq_adjustment": -128728,
+          "sp500_adjustment": 0,
+          "other_us_adjustment": 0,
+          "irp_lag_adjustment": 0
+        },
+        "snapshot_time": "2026-05-05 10:01:18"
+      },
+      "pnl_kis": {
+        "ISA": 2823057,
+        "Pension": 2011915,
+        "IRP": 1760012,
+        "Total": 6594984
+      }
     }
   ],
-  "last_kis_fetch": "2026-05-04T23:57:32"
+  "last_kis_fetch": "2026-05-05T10:00:52"
 }

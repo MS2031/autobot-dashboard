@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-05 15:01:09",
+  "last_updated": "2026-05-05 15:41:12",
   "mode": "공격",
   "accounts": {
     "ISA": {
@@ -1376,7 +1376,7 @@
       "IRP_safe_actual": 11696720,
       "IRP_safe_signal": 11696720,
       "trades": [],
-      "kis_fetch_at": "2026-05-05T15:00:45",
+      "kis_fetch_at": "2026-05-05T15:40:48",
       "kis_fetch_status": {
         "ISA": "OK",
         "Pension": "OK",
@@ -1549,28 +1549,28 @@
       "mode_reason": "OFFENSE: 카나리아 + VIX 모두 정상",
       "warnings": [],
       "fx": {
-        "current": 1475.19,
-        "ma60": 1474.71,
-        "ma20": 1476.83,
-        "deviation_pct": 0.03,
-        "accel_pct": -0.11,
+        "current": 1474.4,
+        "ma60": 1474.69,
+        "ma20": 1476.79,
+        "deviation_pct": -0.02,
+        "accel_pct": -0.16,
         "level": "✅ 정상"
       },
       "realtime_estimate": {
         "official_hantoo": null,
         "official_kis": 174565692,
-        "estimated": 174488421,
-        "gap": -77271,
-        "gap_pct": -0.0443,
+        "estimated": 174451709,
+        "gap": -113983,
+        "gap_pct": -0.0653,
         "breakdown": {
-          "fx_adjustment": 160804,
+          "fx_adjustment": 124092,
           "sox_adjustment": -109347,
           "nasdaq_adjustment": -128728,
           "sp500_adjustment": 0,
           "other_us_adjustment": 0,
           "irp_lag_adjustment": 0
         },
-        "snapshot_time": "2026-05-05 15:01:08"
+        "snapshot_time": "2026-05-05 15:41:10"
       },
       "pnl_kis": {
         "ISA": 2823057,
@@ -1580,5 +1580,5 @@
       }
     }
   ],
-  "last_kis_fetch": "2026-05-05T15:00:45"
+  "last_kis_fetch": "2026-05-05T15:40:48"
 }

@@ -246,10 +246,20 @@
   </section>
 
   <section>
+    <h2>안전장치 v2 (변형 C + VIX + 환율 정보)</h2>
+    <div id="safetyPanel" class="cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      <div class="card"><div class="label">모드 / 사유</div><div class="value neutral" id="safeMode">-</div><div class="meta" id="safeReason">-</div></div>
+      <div class="card"><div class="label">VIX (위기 ≥35 / 경고 ≥25)</div><div class="value neutral" id="safeVix">-</div><div class="meta" id="safeVixMeta">-</div></div>
+      <div class="card"><div class="label">USD/KRW 이격도 (60d MA)</div><div class="value neutral" id="safeFx">-</div><div class="meta" id="safeFxMeta">-</div></div>
+      <div class="card"><div class="label">경고</div><div class="value neutral" id="safeWarnings">없음</div><div class="meta" id="safeWarningsMeta">매매 영향 없는 정보 알림</div></div>
+    </div>
+  </section>
+
+  <section>
     <h2>BAA 카나리아 추세 (SPY/VWO/VEA/BND 13612W)</h2>
     <div class="chart-card">
       <div class="chart-card-header">
-        <div class="title">카나리아 4종 13612W <span style="font-size:13px; color:#a78bfa; font-weight:500;">📌 다음 IRP 리밸런싱: 2026-06-01</span></div>
+        <div class="title">카나리아 4종 13612W <span style="font-size:13px; color:#a78bfa; font-weight:500;">변형 C: 단일 &lt; -0.5 OR 음수 2개 이상 → DEFENSE</span></div>
         <div class="stats" id="canaryStats"></div>
       </div>
       <div class="chart-wrap"><canvas id="canaryChart"></canvas></div>
@@ -432,6 +442,70 @@ async function load() {
 
   renderAccountCharts(records, accs, initialTotal, annotations);
   renderCanaryChart(records, annotations);
+  renderSafetyPanel(last);
+}
+
+// P13 (2026-05-05): 안전장치 v2 패널 — 모드/VIX/환율/경고
+function renderSafetyPanel(last) {
+  if (!last) return;
+  const set = (id, v, cls) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = v;
+    if (cls) el.className = 'value ' + cls;
+  };
+  const setMeta = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  };
+
+  // 모드 + 사유
+  const reason = last.mode_reason || '-';
+  let modeLabel = '-', modeCls = 'zero';
+  if (typeof reason === 'string') {
+    if (reason.startsWith('DEFENSE_EMERGENCY')) { modeLabel = '🚨 긴급방어'; modeCls = 'neg'; }
+    else if (reason.startsWith('DEFENSE')) { modeLabel = '방어 🟢'; modeCls = 'neg'; }
+    else if (reason.startsWith('OFFENSE')) { modeLabel = '공격 🔴'; modeCls = 'pos'; }
+  }
+  set('safeMode', modeLabel, modeCls);
+  setMeta('safeReason', reason.replace(/^[A-Z_]+:\s*/, ''));
+
+  // VIX
+  const vix = last.vix;
+  if (vix && typeof vix.today === 'number') {
+    let cls = 'pos';
+    if (vix.today >= 35) cls = 'neg';
+    else if (vix.today >= 25) cls = 'zero';
+    set('safeVix', vix.today.toFixed(2) + ' (' + (vix.level || '-') + ')', cls);
+    const ch = vix.change_1d != null ? (vix.change_1d * 100).toFixed(2) + '%' : '-';
+    setMeta('safeVixMeta', '어제 ' + (vix.yesterday != null ? vix.yesterday.toFixed(2) : '-') + ' / 1일 변화 ' + ch);
+  } else {
+    set('safeVix', '-', 'zero');
+    setMeta('safeVixMeta', '데이터 부재 → 카나리아만 사용');
+  }
+
+  // FX
+  const fx = last.fx;
+  if (fx && typeof fx.deviation_pct === 'number') {
+    let cls = 'pos';
+    if (fx.level && fx.level.includes('위험')) cls = 'neg';
+    else if (fx.level && fx.level.includes('우려')) cls = 'zero';
+    set('safeFx', (fx.deviation_pct >= 0 ? '+' : '') + fx.deviation_pct.toFixed(2) + '% ' + (fx.level || ''), cls);
+    setMeta('safeFxMeta', '현재 ' + (fx.current != null ? fx.current.toFixed(2) : '-') + '원 / 60d MA ' + (fx.ma60 != null ? fx.ma60.toFixed(2) : '-') + '원');
+  } else {
+    set('safeFx', '-', 'zero');
+    setMeta('safeFxMeta', '데이터 부재 (매매 영향 없음)');
+  }
+
+  // 경고
+  const warnings = last.warnings || [];
+  if (warnings.length) {
+    set('safeWarnings', warnings.length + '건', 'zero');
+    setMeta('safeWarningsMeta', warnings.join(' · '));
+  } else {
+    set('safeWarnings', '없음', 'pos');
+    setMeta('safeWarningsMeta', '매매 영향 없는 정보 알림');
+  }
 }
 
 // P5: 카나리아 4종 13612W 추세 차트 + 현재값 카드

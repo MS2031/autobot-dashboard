@@ -778,6 +778,44 @@ def main():
     except Exception as _ce_top:
         print(f"  [P5 canary] 계산 실패: {_ce_top}")
 
+    # ─── P13 (2026-05-05): 안전장치 v2 — VIX / 환율 / 통합 모드 / 경고 ───
+    try:
+        from utils.safety_signals import (
+            get_vix_data as _get_vix, get_krw_data as _get_krw,
+            determine_mode_v2 as _determine_mode_v2,
+        )
+        _scores_for_mode = {k: v for k, v in (new_record.get("canary") or {}).items()
+                            if isinstance(v, (int, float))}
+        _vix = _get_vix()
+        _krw = _get_krw()
+        if _vix:
+            new_record["vix"] = {
+                "today": round(_vix["today"], 2),
+                "yesterday": round(_vix["yesterday"], 2),
+                "change_1d": round(_vix["change_1d"], 4),
+                "level": ("위기" if _vix["today"] >= 35.0
+                          else ("우려" if _vix["today"] >= 25.0 else "정상")),
+            }
+        else:
+            new_record["vix"] = None
+
+        if _scores_for_mode:
+            _mode, _reason, _fx, _warn = _determine_mode_v2(_scores_for_mode, _vix, _krw)
+            new_record["mode_reason"] = f"{_mode}: {_reason}"
+            new_record["warnings"] = list(_warn)
+            new_record["fx"] = _fx
+        else:
+            new_record["mode_reason"] = None
+            new_record["warnings"] = []
+            new_record["fx"] = None
+        print(f"  [P13 v2] mode={new_record.get('mode_reason')} vix={new_record.get('vix')} warnings={new_record.get('warnings')}")
+    except Exception as _v2err:
+        print(f"  [P13 v2] 계산 실패: {_v2err}")
+        new_record.setdefault("vix", None)
+        new_record.setdefault("fx", None)
+        new_record.setdefault("mode_reason", None)
+        new_record.setdefault("warnings", [])
+
     # ─── daily.json 기록용 realtime_estimate (생략 가능, 보존) ───
     if RT_AVAILABLE and not failed_accounts:
         try:
